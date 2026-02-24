@@ -1,36 +1,36 @@
 ## Part 1. Order of a quadratic field
 
-An integer $d$ is ==square-free== iff the prime factorization has exactly one factor for each prime. Formally, $d=p_1p_2\cdots p_k$ where the $p_i$s are distinct primes.
+An integer $d$ is square-free iff the prime factorization has exactly one factor for each prime. Formally, $d=p_1p_2\cdots p_k$ where the $p_i$s are distinct primes.
 
-An ==algebraic number== is a (complex) root of a non-zero polynomial (over one-variable, of finite degree) with integer (or equivalently, rational) coefficients.
+An algebraic number is a (complex) root of a non-zero polynomial (over one-variable, of finite degree) with integer (or equivalently, rational) coefficients.
 
 * The root can be real or complex.
 * The coefficients are rational numbers.
 * The coefficients become integers after multiplying the least common multiple of denominators. 通分.
 
-An ==algebraic integer== is a (complex) root of a polynomial with integer coefficients, and the leading coefficient is 1.
+An algebraic integer is a (complex) root of a polynomial with integer coefficients, and the leading coefficient is 1.
 
-The ==minimal polynomial of an algebraic number== $a$ is the unique, monic, irreducible (over the rationals) polynomial of smallest degree $p(x)$ with rational coefficients such that $p(a)=0$.
+The minimal polynomial of an algebraic number $a$ is the unique, monic, irreducible (over the rationals) polynomial of smallest degree $p(x)$ with rational coefficients such that $p(a)=0$.
 
 * $p(x)\in\mathbb{Q}(x)$, with 1 as the leading coefficient.
 
-By construction, the ==minimal polynomial of $a+b\sqrt{d}$== is
+By construction, the minimal polynomial of $a+b\sqrt{d}$ is
 $$
 \begin{align}
 p(x)&=(x-(a+b\sqrt{d}))(x-(a-b\sqrt{d})) \\
 &=x^2-2ax+a^2-b^2d
 \end{align}
 $$
-A ==quadratic **field**== $F$ is a field extension of $\mathbb{Q}$ of dimension/rank 2 as a vector space over $\mathbb{Q}$. That is,
+A quadratic **field** $F$ is a field extension of $\mathbb{Q}$ of dimension/rank 2 as a vector space over $\mathbb{Q}$. That is,
 $$
 F = \mathbb{Q}(\sqrt{d})=\left\{a+b\sqrt{d}: \forall a,b\in\mathbb{Q}\right\} ~~.
 $$
-To construct "meaningful" (nontrivial, and unique up to simplest square root) extensions over $\mathbb{Q}$, we ==usually require that $d$ is square-free==. Counter-examples:
+To construct "meaningful" (nontrivial, and unique up to simplest square root) extensions over $\mathbb{Q}$, we usually require that $d$ is square-free. Counter-examples:
 
 * trivial: $\mathbb{Q}(\sqrt 4)=\mathbb{Q}$
 * duplicate: $\mathbb{Q}(\sqrt{108})=\mathbb{Q}(\sqrt{3})$
 
-==The algebraic integers of $F= \mathbb{Q}(\sqrt{d})$== is the totality of elements of the form $a+b\sqrt{d}$ s.t. $p(x)$ has integral coefficients.
+The algebraic integers of $F= \mathbb{Q}(\sqrt{d})$ is the totality of elements of the form $a+b\sqrt{d}$ s.t. $p(x)$ has integral coefficients.
 
 Let $\mathcal{O}_F$ be the set of all algebraic integers of $F$, then
 $$
@@ -63,14 +63,14 @@ To make $a+b\sqrt{d}~~(a,b\in \mathbb{Q})$ an algebraic integer, we need to make
 
 From the above discussion, we have
 
-* If $d\equiv 1~(\mathrm{mod}~4)$, then $(a, b)$ can be ==pairs of either integers or half-integers==. Such $a+b\sqrt{d}$ can be expressed by a $\mathbb{Z}$-module of basis $\left\{1, \frac{1+\sqrt{d}}{2} \right\}$.
+* If $d\equiv 1~(\mathrm{mod}~4)$, then $(a, b)$ can be pairs of either integers or half-integers. Such $a+b\sqrt{d}$ can be expressed by a $\mathbb{Z}$-module of basis $\left\{1, \frac{1+\sqrt{d}}{2} \right\}$.
 * Otherwise, $a, b$ can be integers. Such $a+b\sqrt{d}$ can be expressed by a $\mathbb{Z}$-module of basis $\left\{1, \sqrt{d} \right\}$.
 
-$\mathcal{O}_F$ is a subring of $F$, which is called the ==maximal order== of $F$. Any subring $\mathcal{O}$ of $\mathcal{O}_F$ containing 1 and being a free $\mathbb{Z}$-module of rank 2 is called an ==order== of $F$.
+$\mathcal{O}_F$ is a subring of $F$, which is called the maximal order of $F$. Any subring $\mathcal{O}$ of $\mathcal{O}_F$ containing 1 and being a free $\mathbb{Z}$-module of rank 2 is called an order of $F$.
 
 ## Part 2. Class group of a quadratic field
 
-An ==ideal== is an additive subgroup $\mathfrak{I}$ (Fraktur font of "I") of a ring $\mathcal{R}$ satisfying the "multiplicative trap" property, that is, 
+An ideal is an additive subgroup $\mathfrak{I}$ (Fraktur font of "I") of a ring $\mathcal{R}$ satisfying the "multiplicative trap" property, that is, 
 $$
 xy\in \mathfrak{I}~\mathrm{and}~yx\in \mathfrak{I}~~\forall x\in\mathcal{R},y\in\mathfrak{I}~.
 $$
