@@ -34,7 +34,7 @@ When applying a traditional sigma protocol, one will obtain a transcript:
 * Prover says: $z_r=s_r+er, z_m=s_m+em\bmod p$.
 * Verifier checks if: $g^{z_r}=a_1c_1^e, h^{z_r}f^{z_m}=a_2c_2^e$.
 
-However, if a malicious prover holds a low-order elements $g'$ whose order divides $e$, and provides $c_1'=g'c_1, c_2'=g'c_2$; then the verification is always true for any $r, m$.
+然而, 如果证明者有恶意, 他恰好持有一个低阶元素 $g'$, 其阶数恰好能整除挑战值 $e$; 那么, 只要他提供 $c_1'=g'c_1$, $c_2'=g'c_2$, 就能让验证者不论采用什么 $r, m$, 都能通过验证.
 
 My calculation:
 $$
