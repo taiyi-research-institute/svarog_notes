@@ -105,6 +105,45 @@ $$
 
 合约全程不知道 10、5、12、3 中的任何一个数, 只知道它们配平了.
 
+## 例2. Carol 提现 4U 到公链地址
+
+Carol 花掉例1 收到的 12U note: 提 4U 到自己的公链地址 `addrCarol`, 找零 8U. 设 fee = 0.
+
+要点先行: 明文出金与 fee 的地位完全相同 —— 都是合约看得见的量, 由合约亲手以 $V$ 分量计入 $\mathtt{bvk}$.
+
+(1) Carol 摇 $\mathtt{rcv}$, 算 value commitment.
+
+```
+// input
+cv1 = 12*V + rcv1*R;
+
+// output (找零)
+cv2 = 8*V + rcv2*R;
+```
+
+提现的 4U 没有 cv —— 它是明文, 不需要藏.
+
+(2) Carol 生成 1 个 spend 证明、1 个 output 证明, 照例1.
+
+(3) Carol 算 binding signature.
+
+$\mathtt{bsk} = \mathtt{rcv}_1 - \mathtt{rcv}_2$, 对整笔交易内容 $m$ 签名得 $\sigma$ —— 注意 $m$ 里包含明文金额 4 和 `addrCarol`.
+
+(4) 合约校验并放款.
+
+$$
+\begin{aligned}
+&\phantom{{}={}}\mathtt{bvk} \\
+&= \mathtt{cv}_1 - \mathtt{cv}_2 - [4]\,V \\
+&= [12 - 8 - 4]\,V + [\mathtt{rcv}_1 - \mathtt{rcv}_2]\,R \\
+&= [\mathtt{bsk}]\,R,
+\end{aligned}
+$$
+
+验 $\sigma$ 通过, 则记核销号、插找零叶子、向 `addrCarol` 转出 4U.
+
+💡 进阶1~3 的提现要靠哑约束把公链地址焊进证明; 到这一级哑约束可以退休了 —— $\sigma$ 签的就是整笔交易, 谁想换掉 `addrCarol` 或改明文金额, 验签直接失败.
+
 ## 解锁与遗留
 
 解锁:

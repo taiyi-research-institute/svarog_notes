@@ -90,6 +90,34 @@ Alice 私下把 $(10,\mathtt{pk}_B,\rho_1,r_1)$ 发给 Bob. Bob 核对 $C_1$ 确
 
 Bob 用 $\mathtt{sk}_B$ 派生 $\mathtt{nk}_B$, 算 $h_1 = \mathrm{PRF}(\rho_1;\;\mathtt{nk}_B)$, 照 (2) 的方式证明并花掉.
 
+## 例2. Bob 提现到公链地址
+
+Bob 把例1 收到的 10U 提 4U 到自己的公链地址 `addrBob`, 找零 6U 留在池内.
+
+注意 `addrBob` 与池内地址 $\mathtt{pk}_B$ 是两个不相干的体系: `addrBob` 就是普通的链上账户, 不参与本篇的密钥层级.
+
+(1) Bob 造找零 note.
+
+摇 $\rho_3, r_3$, 算 $C_3 = \mathrm{Hash}(6,\mathtt{pk}_B,\rho_3,r_3)$.
+
+(2) Bob 生成证明并调用合约.
+
+对 input note 算 $h_1 = \mathrm{PRF}(\rho_1;\;\mathtt{nk}_B)$. 命题与例1 第 (2) 步相同 (成员、核销、授权、守恒 $10 = 4 + 6 + \text{fee}$、范围、产出 $C_3$), 只多一条哑约束:
+
+$$
+\mathtt{addrBobSq} = \mathtt{addrBob} \cdot \mathtt{addrBob},
+$$
+
+把收款公链地址焊进证明, 防止别人拿着证明换地址截胡 —— 与基础篇同一招.
+
+公开输入: 近期根 $R$, 核销号 $h_1$, 提现金额 4, `addrBob`, 新叶子 $C_3$.
+
+(3) 合约校验并放款.
+
+验证通过则: 把 $h_1$ 记入已核销, 把 $C_3$ 插入树并发事件, 向 `addrBob` 转出 4U.
+
+与进阶1 的 withdraw 对比: 出口那一段 (明文金额、公链地址、哑约束) 原封不动, 换掉的只是池内的核销与授权两条命题.
+
 ## 解锁与遗留
 
 解锁两件事:
