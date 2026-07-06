@@ -1,10 +1,10 @@
-承接 [zk币进阶2](zk币进阶2.md) 的地址化池子. 进阶3 只做一件事: 把 "链下交付 note 明文" 换成 "链上加密备注 + 收款人试解密". 合约状态模型 (承诺树 cm + 核销表 nf) 仍然一点没变.
+承接 [zk币进阶2](zk币进阶2.md) 的地址化池子. 进阶3 只做一件事: 把 "链下交付钞票明文" 换成 "链上加密备注 + 收款人试解密". 合约状态模型 (承诺树 cm + 核销表 nf) 仍然一点没变.
 
 ## 进阶2 留下的弱点
 
-进阶2 的第 (4) 步: Alice 造好 note 后, 要靠一条链下渠道把明文 $(10,\mathtt{pk}_B,\rho_1,r_1)$ 交给 Bob. 这有两个问题:
+进阶2 的第 (4) 步: Alice 造好钞票后, 要靠一条链下渠道把明文 $(10,\mathtt{pk}_B,\rho_1,r_1)$ 交给 Bob. 这有两个问题:
 
-* 收款依赖链下渠道. 消息一丢, 树里明明有这片叶子, Bob 却永远不知道打开方式, 钱等于烧掉了.
+* 收款依赖链下渠道. 消息一丢, 树里明明有这张叶子, Bob 却永远不知道打开方式, 钱等于烧掉了.
 * Bob 无法自主发现到账. 不守着渠道就不知道有钱进来, 谈不上 "钱包余额自动更新".
 
 ## 结构变化
@@ -23,12 +23,12 @@ sk -> nk, ivk -> pk
 
 ### 交易格式变化
 
-note 本身不变, 仍是 $(v,\mathtt{pk},\rho,r)$, 承诺 $C$ 照旧. 变的是每片 output note 上链时附带两样东西:
+钞票本身不变, 仍是 $(v,\mathtt{pk},\rho,r)$, 承诺 $C$ 照旧. 变的是每张输出钞票上链时附带两样东西:
 
 * 一次性公钥 $\mathtt{epk}$.
 * 加密备注 $\mathtt{ct}$.
 
-Alice 造 output 时, 摇一次性私钥 $\mathtt{esk}$, 算
+Alice 造输出钞票时, 摇一次性私钥 $\mathtt{esk}$, 算
 
 $$
 \begin{aligned}
@@ -52,11 +52,11 @@ $\mathtt{ct}$ 和 $\mathtt{epk}$ 不进电路. 合约不解密、不校验密文
 
 Bob 只公布过地址 $\mathtt{pk}_B$, 与 Alice 没有任何链下渠道.
 
-(1) Alice 造两片 output note 和两份加密备注.
+(1) Alice 造两张输出钞票和两份加密备注.
 
-先看给 Bob 的那片. Alice 在本地:
+先看给 Bob 的那张. Alice 在本地:
 
-* 摇 $\rho_1, r_1$, 组成 note 明文 $(10,\mathtt{pk}_B,\rho_1,r_1)$. 这份明文就是进阶2 里要靠链下渠道交给 Bob 的东西, 本文的全部工作就是把它改走链上.
+* 摇 $\rho_1, r_1$, 组成钞票明文 $(10,\mathtt{pk}_B,\rho_1,r_1)$. 这份明文就是进阶2 里要靠链下渠道交给 Bob 的东西, 本文的全部工作就是把它改走链上.
 * 算承诺 $C_1 = \mathrm{Hash}(10,\mathtt{pk}_B,\rho_1,r_1)$.
 * 摇一次性私钥 $\mathtt{esk}_1$, 算 $\mathtt{epk}_1 = [\mathtt{esk}_1]\,G$ 和 $\mathtt{key}_1 = \mathrm{KDF}([\mathtt{esk}_1]\,\mathtt{pk}_B)$.
 * 对 Bob 此时尚不知道的内容进行加密:  $\mathtt{ct}_1 = \mathrm{Enc}(10,\rho_1,r_1;\;\mathtt{key}_1)$. $\mathtt{esk}_1$ 用完即扔.
@@ -67,7 +67,7 @@ Bob 只公布过地址 $\mathtt{pk}_B$, 与 Alice 没有任何链下渠道.
 * 留在 Alice 本地, 用完即扔: $\mathtt{esk}_1$.
 * 点对点发给 Bob 的: **没有**. Bob 拿到 $(10,\rho_1,r_1)$ 的唯一途径, 是之后自己从链上解密 $\mathtt{ct}_1$.
 
-找零那片同理: 摇 $\rho_2, r_2$, 算 $C_2 = \mathrm{Hash}(20,\mathtt{pk}_A,\rho_2,r_2)$; 摇 $\mathtt{esk}_2$, 把 $(20,\rho_2,r_2)$ 加密给自己的 $\mathtt{pk}_A$, 得 $\mathtt{epk}_2, \mathtt{ct}_2$.
+找零那张同理: 摇 $\rho_2, r_2$, 算 $C_2 = \mathrm{Hash}(20,\mathtt{pk}_A,\rho_2,r_2)$; 摇 $\mathtt{esk}_2$, 把 $(20,\rho_2,r_2)$ 加密给自己的 $\mathtt{pk}_A$, 得 $\mathtt{epk}_2, \mathtt{ct}_2$.
 
 💡 找零也加密给自己, 是为了换设备恢复钱包时, 只凭 `sk` 就能从链上扫回全部资产.
 
@@ -95,7 +95,7 @@ Bob 的钱包平时就同步事件流. 对每个新输出 $(C,\mathtt{epk},\math
 
 ## 提现照旧
 
-提现与进阶2 例2 完全相同. 出口侧收的是明文钱, 公链地址 `addrBob` 本来就看得见自己的余额, 不需要加密备注; 只有留在池内的找零 note 照本篇的方式附 $(\mathtt{epk}, \mathtt{ct})$, 加密给自己.
+提现与进阶2 例2 完全相同. 出口侧收的是明文钱, 公链地址 `addrBob` 本来就看得见自己的余额, 不需要加密备注; 只有留在池内的找零钞票照本篇的方式附 $(\mathtt{epk}, \mathtt{ct})$, 加密给自己.
 
 ## 解锁与遗留
 
@@ -105,4 +105,4 @@ Bob 的钱包平时就同步事件流. 对每个新输出 $(C,\mathtt{epk},\math
 * 到账与花费解耦: 想花再花.
 * 顺带得到一个好性质: `ivk` 只能看、不能花 (花要 `sk`). 进阶5 会用它做选择性披露.
 
-遗留一件事: 守恒式 $\sum v_{in} = \sum v_{out} + \text{fee}$ 目前在一个电路里证, 整笔交易的所有 note 都要塞进同一个证明, 交易一大电路就跟着膨胀. 进阶4 用同态 value commitment + binding signature 把守恒挪到电路外, 做到一片 note 一个小电路.
+遗留一件事: 守恒式 $\sum v_{in} = \sum v_{out} + \text{fee}$ 目前在一个电路里证, 整笔交易的所有钞票都要塞进同一个证明, 交易一大电路就跟着膨胀. 进阶4 用同态 value commitment + binding signature 把守恒挪到电路外, 做到一张钞票一个小电路.
