@@ -1,130 +1,118 @@
-承接 [zk币进阶1](zk币进阶1.md) 的任意面额池. 进阶2 只做一件事: 把 "谁知道秘密谁拥有" 换成 "谁持有私钥谁拥有". 合约状态模型 (承诺树 cm + 核销表 nf) 仍然一点没变.
-
-## 进阶1 留下的弱点
-
-在进阶1, 所有权 = 知道 $(v, k, r)$, 转账 = 把这组秘密交出去. 这有两个问题:
+在 [进阶1](./zk币进阶1.md) , 所有权 = 知道 $N=(v, k, r)$, 转账 = 把这组秘密交出去. 这有两个问题:
 
 * 发送方抢跑. Alice 把钞票发给 Bob 之后自己仍然知道 $(v, k, r)$, 理论上能抢在 Bob 之前把钱花掉. Bob 收到钞票后必须立刻转成只有自己知道的新钞票才安全.
-* 没有 "地址". Bob 想收钱, 只能等 Alice 造好钞票再私下把秘密传给他, 无法像普通链那样公布一个收款地址.
+* 没有 "地址". Bob 想收钱, 只能等 Alice 造好钞票再私下把秘密传给他, 无法像普通链那样把收款地址告诉付款人.
 
-## 结构变化
-
-### 钞票结构变化
-
-引入密钥层级. Bob 一次性生成:
-
-```
-sk -> nk, pk
-```
-
-* 根秘密 `sk`.
-* 核销密钥 `nk = KDF(sk, "nk")`.
-* 公开收款地址 `pk = KDF(sk, "pk")`.
-
-钞票从 $(v, k, r)$ 变成 $(v, \mathtt{pk}, \rho, r)$:
-
+跟 [进阶1](./zk币进阶1.md) 相比, 钞票结构升级为下式
 $$
-C = \mathrm{Hash}(v,\mathtt{pk},\rho,r).
+N=(v,\mathtt{pk},\rho,r). \tag{note}
 $$
-
-核销号的原像 $k$ 被拆成了两半: Alice 摇一个公开的一次性编号 $\rho$, Bob 从他自己的 `sk` 衍生出核销密钥 `nk`. 最终的核销号为
+核销号升级为下式, 式中 PRF 意为 "pseudo-random function".
 $$
-h = \mathrm{PRF}(\rho;\; \mathtt{nk}).
+h=\mathrm{PRF}(\rho,\mathtt{nk}). \tag{nf}
 $$
-如此, Alice 知道钞票的全部字段, 但算不出核销号 $h$, 因此花不掉这张钞票.
-
-### 电路 (命题) 变化
-
-与进阶1 相比, 电路的命题变了两条:
-
-(1) 负责核销的命题变为: 存在 $\mathtt{sk}$ 使得
+$\mathtt{pk}$, $\mathtt{nk}$ 是从 $\mathtt{sk}$ 导出的, 具体方式如下式, 式中 KDF 意为 "key derivation function".
 $$
 \begin{aligned}
-\mathtt{pk}&=\mathrm{KDF}(\mathtt{sk}, \texttt{"pk"}) \\
-\land\quad h&=\mathrm{PRF}\big(
-\rho;\;
-\mathrm{KDF}(\mathtt{sk},\texttt{"nk"})
-\big).
+\mathtt{nk}&=\mathrm{KDF}(\mathtt{sk}, \texttt{"nk"}),\\
+\mathtt{pk}&=\mathrm{KDF}(\mathtt{sk}, \texttt{"pk"}).
 \end{aligned}
+\tag{keygen}
 $$
-(2) 新增花费授权命题: 签名与钞票公钥同源.
+以上数学构造决定了这一版本的特点:
 
-⚠️ 电路里必须约束 `pk` 和 `nk` 出自同一个 `sk`.
+* 谁持有背后的 $\mathtt{sk}$, 谁就能花这张钞票. 别人不能.
+* 把 $\mathtt{pk}$ 写给谁, 谁就能花这张钞票. 别人不能, 哪怕印钞者也不能.
 
-存款照进阶1: 明文金额 + 发行证明, 只是命题里的承诺换成新格式 —— 存在 $\mathtt{pk}, \rho, r$ 使得 $C = \mathrm{Hash}(v,\mathtt{pk},\rho,r)$, 其中 $v$ 是公开的明文金额.
+⚠️新的**纪律**: $\mathtt{pk}$ 不要上链, 可以公示, 最好只告诉付款人. 违反纪律的后果是收款人的资金去向对全网公开, 尤其是暴露 $\mathtt{pk}$ 与公链地址的关联.
 
-## 例1. Alice 池内给 Bob 转 10U (按地址)
+## 例1. Alice 池内给 Bob 转 10U
 
-Bob 事先公布地址 $\mathtt{pk}_B$. Alice 手里有一张 30U 的钞票 $(30,\mathtt{pk}_A,\rho_0,r_0)$, 已在树中.
+### 1.0 Bob 生成密钥
 
-(1) Alice 造两张输出钞票.
+按公式 (keygen), Bob 生成 $\mathtt{sk_B}$, $\mathtt{nk_B}$, $\mathtt{pk_B}$.
 
-给 Bob 一张: 摇 $\rho_1, r_1$, 算 $C_1 = \mathrm{Hash}(10,\mathtt{pk}_B,\rho_1,r_1)$.
+Bob 给 Alice 发送 $\mathtt{pk_B}$.
 
-给自己找零一张: 摇 $\rho_2, r_2$, 算 $C_2 = \mathrm{Hash}(20,\mathtt{pk}_A,\rho_2,r_2)$.
+### 1.1 Alice 印新钞
 
-注意 Alice 只需要 Bob 的公开地址 $\mathtt{pk}_B$, 不需要和 Bob 有任何事前的秘密交接.
+假设 Alice 已经有一张 30U 的钞票 $N_1=(v_1=30,\mathtt{pk_A},\rho_1,r_1)$.
 
-(2) Alice 生成证明并调用合约.
+Alice 给自己找零一张 $N_2=(v_2=20, \mathtt{pk_A}, ...)$.
 
-对输入钞票算 $h_0 = \mathrm{PRF}(\rho_0;\;\mathtt{nk}_A)$. 照旧重放 Merkle 树, 拿到路径和近期根 $R$. 要证的命题:
+Alice 给 Bob 发送一张 $N_3=(v_3=10,\mathtt{pk_B},...)$.
 
-* 登记: $(30,\mathtt{pk}_A,\rho_0,r_0)$ 在根为 $R$ 的树里;
-* 核销正确: $h_0$ 与 $\mathtt{pk}_A$ 都来自 $\mathtt{sk}_A$.
-* 花费授权: 知道 $\mathtt{sk}_A$.
-* 守恒: 30 = 10 + 20 + fee, 设 fee = 0;
-* 范围: 10 和 20 都落在 $[0, 2^{64})$;
-* 发行: $C_1, C_2$ 分别是两张输出钞票的正确承诺.
+### 1.2 Alice 生成证明, 调用合约
 
-调用合约: 传证明 $\pi$; 公开输入: 近期根 $R$, 核销号 $h_0$, 两张新叶子 $C_1, C_2$.
+重放 $h_1=\mathrm{PRF}(\rho_1, \mathtt{nk_A})$, $C_1=\mathrm{Hash}(N_1)$, 重放 Merkle 根 $R_1$ 和登记路径 $(i_1, P_1)$.
 
-(3) 合约校验并记账.
+公开输入: $h_1$, $R_1$, $C_2$, $C_3$.
 
-验证 $\pi$ 对某近期根成立, 且 $h_0$ 未核销. 通过则把 $h_0$ 记入已核销, 登记 $C_1, C_2$. 与进阶1 完全一致 —— 合约根本感知不到 "地址" 这一层, 状态模型没动.
+⚠️ 根据本文开头的纪律, 不能把 $\mathtt{pk_A}$ 作为公开输入.
 
-(4) Alice 把钞票明文发给 Bob.
+见证: $N_1$, $i_1$, $P_1$, $N_2$, $N_3$, $\mathtt{sk_A}$. 
 
-Alice 私下把 $(10,\mathtt{pk}_B,\rho_1,r_1)$ 发给 Bob. Bob 核对 $C_1$ 确实在树里, 即确认到账.
+约束:
 
-与进阶1 的本质区别: 这份明文泄露给谁都不怕. 知道它只能 "看见" 这张钞票 (金额、收款人), 花它需要 $\mathtt{sk}_B$. 特别地, Alice 自己也花不掉.  Bob 不再需要收款后立刻转存.
+* 登记. 跟 [进阶1](./zk币进阶1.md) 一样, 从 $\mathrm{Hash}(N_1)$ 沿着 $(i_1, P_1)$ 逐层哈希恰为给定的根 $R_1$.
+* 核销 ※. 对 [进阶1](./zk币进阶1.md) 大改. 存在 $\mathtt{sk_A}$ 使得
 
-(5) Bob 以后花钱.
+$$
+\begin{aligned}
+\mathtt{pk_A}&=\mathrm{KDF}(\mathtt{sk_A}, \texttt{"pk"}) \\
+\land\quad h_1&=\mathrm{PRF}\big(
+\rho_1,\;
+\mathrm{KDF}(\mathtt{sk_A},\texttt{"nk"})
+\big).
+\end{aligned} \tag{nf-circ}
+$$
+* 身份同一性. $\mathtt{pk_A}$ 在前两条约束里都是见证. 此条约束要求它们相等.
+* 守恒, 范围, 金额. 跟 [进阶1](./zk币进阶1.md) 一样.
 
-Bob 用 $\mathtt{sk}_B$ 派生 $\mathtt{nk}_B$, 算 $h_1 = \mathrm{PRF}(\rho_1;\;\mathtt{nk}_B)$, 照 (2) 的方式证明并花掉.
+最后 Alice 给合约传证明 $\pi$ 以及公开输入.
+
+### 1.3 合约登记
+
+合约验 $\pi$, 核销 $h_1$, 登记 $C_2$, $C_3$, 跟 [进阶1](./zk币进阶1.md) 一样.
+
+以后不再罗里吧嗦说 "若 $h_1$ 未核销则记为已核销", 默认这个 check-if 逻辑隐含在 "核销" 这个动词里.
 
 ## 例2. Bob 提现到公链地址
 
-Bob 把例1 收到的 10U 提 4U 到自己的公链地址 `addrBob`, 找零 6U 留在池内.
+Bob 把例1 收到的 10U 提 4U 到自己的公链地址 `addr`, 找零 6U 留在池内.
 
-注意 `addrBob` 与池内地址 $\mathtt{pk}_B$ 是两个不相干的体系: `addrBob` 就是普通的链上账户, 不参与本篇的密钥层级.
+注意 `addr` 与池内地址 $\mathtt{pk_B}$ 是两个不相干的体系: `addr` 就是普通的链上账户, 不参与本篇的密钥层级.
 
-(1) Bob 造找零钞票.
+### 2.1 Bob 印钞
 
-摇 $\rho_3, r_3$, 算 $C_3 = \mathrm{Hash}(6,\mathtt{pk}_B,\rho_3,r_3)$.
+生成 $N_4=(v_4=6, \mathtt{pk_B}, ...)$. 算 $C_4=\mathrm{Hash}(N_4)$.
 
-(2) Bob 生成证明并调用合约.
+### 2.2 Bob 生成证明, 调用合约
 
-对输入钞票算 $h_1 = \mathrm{PRF}(\rho_1;\;\mathtt{nk}_B)$. 命题与例1 第 (2) 步相同 (登记、核销、授权、守恒 $10 = 4 + 6 + \text{fee}$、范围、发行 $C_3$), 只多一条哑约束:
+准备工作: 重放 $R_3$, $C_3$, $h_3$, $i_3$, $P_3$.
 
-$$
-\mathtt{addrBobSq} = \mathtt{addrBob} \cdot \mathtt{addrBob},
-$$
+公开输入: $h_3$, $R_3$, $C_4$, `addr`, 提现金额 4.
 
-把收款公链地址焊进证明, 防止别人拿着证明换地址截胡 —— 与基础篇同一招.
+见证: $N_3$, $i_3$, $P_3$, $N_4$, $\mathtt{sk_B}$.
 
-公开输入: 近期根 $R$, 核销号 $h_1$, 提现金额 4, `addrBob`, 新叶子 $C_3$.
+约束:
 
-(3) 合约校验并放款.
+* 登记: 从 $\mathrm{Hash}(N_3)$ 沿着 $(i_3, P_3)$ 逐层哈希恰为给定的根 $R_3$.
+* 核销: 套用公式 (nf-circ).
+* 身份: 前两条约束使用相同的 $\mathtt{pk_B}$.
+* 地址, 守恒, 范围, 金额.
 
-验证通过则: 把 $h_1$ 记入已核销, 登记 $C_3$, 向 `addrBob` 转出 4U.
+Bob 给合约发送证明和相应的公开输入.
 
-与进阶1 的 withdraw 对比: 出口那一段 (明文金额、公链地址、哑约束) 原封不动, 换掉的只是池内的核销与授权两条命题.
+### 2.3 合约受理 Bob 业务
 
-## 解锁与遗留
+合约检验证明, 核销 $h_3$, 登记 $C_4$, 给 `addr` 打 4U.
+
+## 讨论
 
 解锁两件事:
 
-* 按地址收款: 公布 pk 即可, 收款前无需任何秘密交接.
+* 按地址收款: 收款人只需事先把 $\mathtt{pk}$ 告诉付款人. 收款前无需任何秘密交接.
 * 发送方事后无法再花已发出的钱: 所有权从 "知道秘密" 收紧为 "持有私钥".
 
-遗留一件事: 第 (4) 步 Alice 仍要靠链下渠道把钞票明文交给 Bob, Bob 才知道自己收了钱. 进阶3 用链上加密备注 + 试解密解决它, 实现真正的被动收款.
+遗留一件事: Alice 仍要靠链下渠道把钞票明文交给 Bob, Bob 才知道自己有钱. 进阶3 用链上加密备注 + 试解密解决它, 实现真正的被动收款.
