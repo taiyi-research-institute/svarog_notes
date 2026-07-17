@@ -1,156 +1,237 @@
-承接 [zk币进阶3](zk币进阶3.md) 的被动收款池子. 进阶4 只做一件事: 把余额守恒从电路里挪到电路外, 用同态 value commitment + binding signature 验证. 合约状态模型 (承诺树 cm + 核销表 nf) 仍然一点没变.
+## 前言
 
-## 进阶3 留下的弱点
+承接 [zk币进阶3](zk币进阶3.md) 的被动收款池子. 进阶4 只设定一个目标:
 
-守恒式 $\sum v_{in} = \sum v_{out} + \text{fee}$ 是在电路里证的. 这要求整笔交易的所有钞票的金额出现在**同一个电路**的私有输入里, 带来两个问题:
+```
+把余额守恒从电路里挪到电路外, 用同态性来验证.
+```
+
+### 上一版的弱点
+
+守恒式 $\sum v_\mathrm{in} = \sum v_\mathrm{out} + \text{fee}$ 是在电路里证的. 这要求整笔交易的所有券的金额出现在 **同一个电路** 的私有输入里. 这带来两个问题:
 
 * 电路形状被钉死. 2 进 2 出的电路证不了 3 进 5 出. 要么为每种形状各造一个电路, 要么把所有交易 padding 成最大形状, 白白多付证明开销.
 * 证明无法拆分并行. 一笔大交易只能生成一个大证明.
 
-理想形态: 一张输入钞票一个小证明, 一张输出钞票一个小证明, 任意 $m$ 进 $n$ 出自由拼装. 但一拆开, 守恒就没人证了 —— 每个小电路只看得见自己那张钞票的 $v$, 看不见全局.
+理想形态: 一张输入券一个小证明, 一张输出券一个小证明, 任意 $m$ 进 $n$ 出自由拼装. 但一拆开, 守恒就没人证了 —— 每个小电路只看得见自己那张券的 $v$, 看不见全局.
 
-## 结构变化
+### 这一版的核心变化
 
-### 交易格式变化
+(1) 券的金额以同态承诺形式上链.
 
-钞票本身不变. 变的是: 交易里的**每张**钞票 (输入和输出都算) 附带一个 value commitment:
-
+交易里的每张券, 不论印券还是花券, 都附带一个金额承诺:
 $$
-\mathtt{cv} = [v]\,V + [\mathtt{rcv}]\,R.
+\mathtt{cv}=v\cdot V + \mathtt{rcv}\cdot R. \tag{cv}
 $$
+其中:
 
-其中 $V, R$ 是两个固定生成元, $\mathtt{rcv}$ 是为这张钞票摇的盲化因子. $\mathtt{cv}$ 上链, 但 Pedersen 承诺是隐藏的, 不泄露 $v$.
+* $V$, $R$ 是两个固定的生成元, 用不知离散对数的方式生成, 如 hash-to-curve.
+* $\mathtt{rcv}$ 是为这张券摇的盲化因子.
 
-⚠️ $V, R$ 必须用 hash-to-curve 之类的方式独立生成, 保证没人知道 $\log_R V$. 后面会看到, 谁知道这个离散对数谁就能凭空增发.
+(2) 在合约里检查守恒.
 
-### 电路 (命题) 变化
-
-大电路拆成两种固定形状的小电路:
-
-* spend 电路 (每张输入钞票一个): 登记、核销正确、花费授权, 外加一条新命题 —— $\mathtt{cv}$ 与承诺 $C$ 里藏的是**同一个** $v$.
-* output 电路 (每张输出钞票一个): 发行承诺正确、范围 $0 \le v < 2^{64}$, 外加同一条新命题.
-
-守恒命题从电路里**删掉了**. 没有任何电路看全局.
-
-⚠️ 范围证明不但不能扔, 还要更严格: 守恒现在只在群里 ($\bmod$ 群阶) 成立, 没有范围钉住每个 $v$, "负数金额" 照样能让 $V$ 分量归零.
-
-### 电路外: binding signature
-
-守恒改由合约用 $\mathtt{cv}$ 的同态性验证. 把整笔交易的 value commitment 加加减减:
-
+在这一版, 守恒在合约里用 cv 的同态性来验证. 基本原理如下式
 $$
 \begin{aligned}
-&\phantom{{}={}}\mathtt{bvk} \\
-&= \sum \mathtt{cv}_{in} - \sum \mathtt{cv}_{out} - [\text{fee}]\,V \\
-&= \Big[\underbrace{\textstyle\sum v_{in} - \sum v_{out} - \text{fee}}_{\text{守恒} \Rightarrow\ 0}\Big] V + \big[\Delta\mathtt{rcv}\big]\,R,
+\mathtt{bpk} 
+&:= \sum \mathtt{cv}_\mathrm{in} - \sum \mathtt{cv}_\mathrm{out} - [\text{fee}]\,V \\
+&= \Big[
+\underbrace{\textstyle
+	\sum v_\mathrm{in}
+	- \sum v_\mathrm{out}
+	-\text{fee}}_{\text{守恒}
+\Rightarrow\ 0}\Big] V
++ \big[\Delta\mathtt{rcv}\big]\,R.
 \end{aligned}
+\tag{bpk}
 $$
 
-其中 $\Delta\mathtt{rcv} = \sum \mathtt{rcv}_{in} - \sum \mathtt{rcv}_{out}$. (fee 是明文, 合约直接看得到.)
+如果守恒成立, 那么 $V$ 分量消掉, 有 $\Delta\mathtt{rcv}=\mathrm{dlog}_R(\mathtt{bpk})$.
 
-若守恒成立, $V$ 分量消掉, $\mathtt{bvk} = [\Delta\mathtt{rcv}]\,R$ 恰好是一把以 $R$ 为基的**签名公钥**, 私钥就是 $\mathtt{bsk} = \Delta\mathtt{rcv}$ —— 只有掌握全部 $\mathtt{rcv}$ 的交易构造者算得出.
+令  $\mathtt{bsk}=\Delta\mathtt{rcv}$. 注意到持有全部 $\mathtt{rcv}$ 的主体能算出 $\mathtt{bsk}$, 而交易构造者正是这样的主体. 那么他以 $\mathtt{bsk}$ 为私钥, 对整笔交易进行以 $R$ 为基的 Schnorr 签名.
 
-签名方案就是普通的 Schnorr, 只是把基点从惯用的 $G$ 换成 $R$. 记 $m$ 为整笔交易的内容:
+合约以 $\mathtt{bpk}$ 为公钥进行验签, 若验签通过, 则相信这笔交易是守恒的; 否则认为交易不守恒. 这是因为, 给混有 $V$ 分量的 $\mathtt{bpk}$ 配出任何合法签名, 都等价于知道 $\mathrm{dlog}_R (V)$, 而这被 hash-to-curve 堵死.
 
-* 构造者签名: 摇 nonce $t$, 算 $T = [t]\,R$, $e = \mathrm{Hash}(T, m)$, $s = t + e \cdot \mathtt{bsk}$. 发出 $\sigma = (T, s)$.
-* 合约验签: 先自己同态算出 $\mathtt{bvk} = \sum \mathtt{cv}_{in} - \sum \mathtt{cv}_{out} - [\text{fee}]\,V$, 再算 $e = \mathrm{Hash}(T, m)$, 检查
+(3) 电路 (命题) 变化.
 
-$$
-[s]\,R \overset{?}{=} T + [e]\,\mathtt{bvk}.
-$$
+弃用大电路, 改用若干小电路, 分为印券和花券两类.
 
-与普通验签的唯一区别: 公钥 $\mathtt{bvk}$ 不是交易者上传的, 而是合约从链上的 $\mathtt{cv}$ 加加减减**自己算出来的**. 交易者上传的只有 $\sigma = (T, s)$.
+每张要花的券要跑一次花券电路. 约束有: ① 券已登记, ② 核销号有原像, ③ 身份 ($N$ 与 $h$ 依赖同一个 $\mathtt{sk}$), 外加一个新约束: ④ $\mathtt{cv}$ 与 $N$ 背后的 $v$ 相同.
 
-为什么这等价于守恒? 验签通过意味着构造者知道 $\mathtt{bvk}$ 关于基 $R$ 的离散对数 (Schnorr 的知识性). 若守恒不成立, $\mathtt{bvk} = [\Delta v]\,V + [\Delta\mathtt{rcv}]\,R$ 混着非零的 $V$ 分量, 知道它以 $R$ 为基的离散对数就等价于知道 $\log_R V$ —— 没人知道. 所以: 能出示合法 $\sigma$ $\iff$ $V$ 分量为零 $\iff$ 守恒.
+每张新印的券要跑一次印券电路. 约束有: ① 券承诺有原像, ② 券金额范围合法, 外加 ③ $\mathtt{cv}$ 与 $N$ 背后的 $v$ 相同.
 
+守恒约束演变为合约验签. 
 
+## 例1. Bob 给自己存 10U
 
-## 例1. Bob 池内 2 进 2 出给 Carol 转 12U
+Bob 印一张给自己的券 $N_1=(v_1=10,\ \mathtt{pk_B},\ ...)$, 算 $C_1=\mathrm{Hash}(N_1)$. 他打算给池子转 10U, 在池子上登记 $C_1$. 设 fee = 0.
 
-Bob 手里两张钞票: 进阶3 收到的 10U, 和另一张 5U. 他要给 Carol 转 12U, 给自己找零 3U. 设 fee = 0.
-
-(1) Bob 为四张钞票各摇一个 $\mathtt{rcv}$, 算 value commitment.
+### 1.1 承诺金额
 
 ```
-// input
+// 印券
 cv1 = 10*V + rcv1*R;
+```
+
+### 1.2 出具证明
+
+Bob 为 $N_1$ 出具印券证明: 券承诺 $C_1$ 有原像, 金额 $v_1$ 范围合法, $C_1$ 和 $v_1$ 使用同一金额.
+
+Bob 还要为 $N_1$ 构造密文备注, 加密给自己 —— 照进阶3, 换设备恢复钱包时才扫得回来.
+
+### 1.3 出具签名
+
+Bob 计算
+
+```
+bsk = 0 - rcv1
+```
+
+入金侧是明文, 没有摇过任何 $\mathtt{rcv}$, 所以这一侧求和为 0. 以 `bsk` 为私钥, 以 $R$ 为基点, 基于此时已出现的 **所有合约参数** 构造签名消息 $m$, 计算 Schnorr 签名 $\sigma$.
+
+Bob 调用合约, 参数有: ZK 证明 $\pi_1$, 券承诺 $C_1$, 金额承诺 $\mathtt{cv}_1$, 加密备注 $\mathtt{ct}_1$, 加密公钥 $\mathtt{epk}_1$, 存款金额 10, 交易签名 $\sigma$. 并随调用转账 10U.
+
+### 1.4 合约受理
+
+(1) 确认实收 10U 与参数中的存款金额一致.
+
+(2) 验 $\pi_1$.
+
+(3) 验 $\sigma$, 要点如下:
+
+* 重放公钥 `bpk`, 如公式 (bpk) 所示. 但公式缺一项入金, 配不平. 按公式 (cv), 合约构造 $10V+0R$ 作为一项入金, 代入公式 (bpk).
+* 以合约参数 ($\sigma$ 除外) 为原始材料, 重放签名消息 $m$.
+* 基点设为 $R$.
+
+(4) 登记 $C_1$.
+
+💡 进阶1 引入的存款金额证明, 到这一版退休了: 明文入金由合约亲手以 $V$ 分量计入 $\mathtt{bpk}$. Bob 若印一张 1000U 的券却只存 10U, $\mathtt{bpk} = [10-1000]\,V - [\mathtt{rcv}_1]\,R$ 混着非零 $V$ 分量, 签不出 $\sigma$.
+
+## 例2. Bob 站内 2 进 2 出给 Carol 转 12U
+
+接例1, Bob 手里有那张已登记的 10U 券 $N_1$; 另假设他还有一张 5U 的 $N_2$. 他要给 Carol 转 12U, 记为 $N_3$; 以及给自己找零 3U, 记为 $N_4$. 沿用上一版的券定义. 设 fee = 0.
+
+### 2.1 承诺金额
+
+```
+// 花券
+cv1 = 10*V + rcv1*R;
+// ⚠️ rcv1 记号复用, 数值重摇
 cv2 = 5*V + rcv2*R;
 
-// output
+// 印券
 cv3 = 12*V + rcv3*R;
 cv4 = 3*V + rcv4*R;
 ```
 
-(2) Bob 生成 4 个小证明.
+### 2.2 出具证明
 
-* 2 个 spend 证明: 各证一张输入钞票的登记、核销、授权、$\mathtt{cv}$ 一致.
-* 2 个 output 证明: 各证一张输出钞票的承诺正确、范围、$\mathtt{cv}$ 一致.
+Bob 出具花券证明 $\pi_j$, $j=1,2$. 此处重载 $\pi_1$ 定义. 要点如下:
 
-输出钞票的构造与加密备注照进阶3, 不再重复. 4 个证明互相独立, 可并行生成.
+* $\mathrm{Hash}(N_j)$ 已登记,
+* $h_j$ 有原像,
+* $N_j$ 和 $h_j$ 依赖同一个 $\mathtt{sk_B}$.
+* $\mathtt{cv}_j$ 和 $N_j$ 使用同一金额.
 
-(3) Bob 算 binding signature.
+Bob 出具印券证明 $\pi_j$, $j=3,4$. 要点如下:
 
-$$
-\mathtt{bsk} = (\mathtt{rcv}_1 + \mathtt{rcv}_2) - (\mathtt{rcv}_3 + \mathtt{rcv}_4),
-$$
+* $C_j$ 有原像,
+* $v_j$ 范围合法,
+* $\mathtt{cv}_j$ 和 $N_j$ 使用同一金额.
 
-用 $\mathtt{bsk}$ 对整笔交易内容 $m$ (全部证明、核销号、新叶子、$\mathtt{cv}$、加密备注) 做基为 $R$ 的 Schnorr 签名, 得 $\sigma = (T, s)$. 调用合约, 参数: 4 个证明、2 个核销号、2 张新叶子、4 个 $\mathtt{cv}$、2 份加密备注、交易签名 $\sigma$.
+Bob 还要为 $N_j,\,j=3,4$ 构造密文备注 $\mathtt{ct}_j$ 和 DH 密钥 $\mathtt{epk}_j$, 沿用进阶3, 不再赘述.
 
-(4) 合约校验并记账.
+### 2.3 出具签名
 
-* 逐个验 4 个小证明, 核对 2 个核销号未用过.
-* 同态算 $\mathtt{bvk} = \mathtt{cv}_1 + \mathtt{cv}_2 - \mathtt{cv}_3 - \mathtt{cv}_4$. 本例 10 + 5 = 12 + 3, $V$ 分量抵消, 展开后 $\mathtt{bvk} = [\mathtt{rcv}_1 + \mathtt{rcv}_2 - \mathtt{rcv}_3 - \mathtt{rcv}_4]\,R$  $= [\mathtt{bsk}]\,R$, 正是 Bob 签名私钥对应的公钥.
-* 算 $e = \mathrm{Hash}(T, m)$, 检查 $[s]\,R = T + [e]\,\mathtt{bvk}$. 因为上一条成立, Bob 的 $\sigma$ 能通过; 换任何一个金额 (比如把 output 改成 13U), $\mathtt{bvk}$ 就混进 $V$ 分量, 谁也签不出来.
-* 照旧记核销号、登记 2 张新钞.
-
-合约全程不知道 10、5、12、3 中的任何一个数, 只知道它们配平了.
-
-## 例2. Carol 提现 4U 到公链地址
-
-Carol 花掉例1 收到的那张 12U 钞票: 提 4U 到自己的公链地址 `addrCarol`, 找零 8U. 设 fee = 0.
-
-要点先行: 明文出金与 fee 的地位完全相同 —— 都是合约看得见的量, 由合约亲手以 $V$ 分量计入 $\mathtt{bvk}$.
-
-(1) Carol 摇 $\mathtt{rcv}$, 算 value commitment.
+Bob 计算
 
 ```
-// input
-cv1 = 12*V + rcv1*R;
-
-// output (找零)
-cv2 = 8*V + rcv2*R;
+bsk = (rcv1+rcv2) - (rcv3+rcv4)
 ```
 
-提现的 4U 没有 cv —— 它是明文, 不需要藏.
+以 `bsk` 为私钥, 以 $R$ 为基点, 基于此时已出现的 **所有合约参数** 构造签名消息 $m$, 计算 Schnorr 签名 $\sigma$.
 
-(2) Carol 生成 1 个 spend 证明、1 个 output 证明, 照例1.
+Bob 调用合约, 参数有: 
 
-(3) Carol 算 binding signature.
+* (花券 $j=1,2$) $\pi_j$, $h_j$, $R_j$, $\mathtt{cv}_j$.
+* (印券 $j=3,4$) $\pi_j$, $C_j$, $\mathtt{cv}_j$, $\mathtt{ct}_j$, $\mathtt{epk}_j$.
+* $\sigma$.
 
-$\mathtt{bsk} = \mathtt{rcv}_1 - \mathtt{rcv}_2$, 对整笔交易内容 $m$ 签名得 $\sigma$ —— 注意 $m$ 里包含明文金额 4 和 `addrCarol`.
+⚠️ $C_j$ 是券 $N_j$ 在链上的公开 ID. 所以, $C_j$ 一定不能成为花券参数, 否则泄露存款人和取款人的资金链条; $C_j$ 一定要成为印券参数, 否则 $N_j$ 可以任意印发 (抵赖).
 
-(4) 合约校验并放款.
+### 2.4 合约受理
 
-$$
-\begin{aligned}
-&\phantom{{}={}}\mathtt{bvk} \\
-&= \mathtt{cv}_1 - \mathtt{cv}_2 - [4]\,V \\
-&= [12 - 8 - 4]\,V + [\mathtt{rcv}_1 - \mathtt{rcv}_2]\,R \\
-&= [\mathtt{bsk}]\,R,
-\end{aligned}
-$$
+验 $\pi_1$ ~ $\pi_4$.
 
-验 $\sigma$ 通过, 则记核销号、登记找零叶子, 向 `addrCarol` 转出 4U.
+验 $\sigma$, 要点如下:
 
-💡 进阶1~3 的提现要靠哑约束把公链地址焊进证明; 到这一级哑约束可以退休了 —— $\sigma$ 签的就是整笔交易, 谁想换掉 `addrCarol` 或改明文金额, 验签直接失败.
+* 重放公钥 `bpk`, 如公式 (bpk) 所示.
+* 以合约参数 ($\sigma$ 除外) 为原始材料, 重放签名消息 $m$.
+* 基点设为 $R$.
 
-💡 进阶1 的存款发行证明同样可以退休: 存款造出的钞票照跑 output 电路 (含 "cv 一致"), 明文存款额由合约以 $V$ 分量计入 $\mathtt{bvk}$, 与提现额、fee 反号. Alice 若造一张 1000U 的钞却只打 30U, $\mathtt{bvk} = [30 - 1000]\,V - [\mathtt{rcv}]\,R$ 混着非零 $V$ 分量, 谁也签不出 $\sigma$.
+若验签通过, 则相信此次交易的出入金额是守恒的.
+
+核销 $h_1$, $h_2$, 登记 $C_3$, $C_4$.
+
+### 2.5 Carol 自动收款
+
+Carol 拉取链上消息, 逐个尝试解密, 最终解出属于他的新券 $N_3$. 详见 进阶3 §1.4.
+
+## 例3. Carol 提现 4U 到公链地址
+
+Carol 持有 $N_3=(v_3=12, \mathtt{pk_C}, ...)$. 他打算提 4U 到他的公链地址 `addr`, 找零 $N_5=(v_5=8, \mathtt{pk_C}, ...)$ 留在平台. 设 fee = 0.
+
+### 3.1 承诺金额
+
+```
+// 花券
+cv3 = 12*V + rcv3*R; 
+// ⚠️ rcv3 记号复用, 数值重摇
+
+// 印券
+cv5 = 8*V + rcv5*R;
+```
+
+提现到公链的 4U 不必承诺, 因为它将成为链上明文.
+
+⚠️ $\mathtt{rcv}_3$ 的记号复用, 数值必须重摇, 否则泄露 Bob - Carol 这条资金链.
+
+### 3.2 出具证明
+
+Carol 为花掉券 3 出具 $\pi_3$ (重载例2同名), 为印发券 5 出具 $\pi_4$. 要点详见本文 §2.2.
+
+### 3.3 出具签名
+
+算签名私钥 $\mathtt{bsk} = \mathtt{rcv}_3 - \mathtt{rcv}_5$, 基点设为 $R$, 基于此时已出现的 **所有合约参数** 构造签名消息 $m$, 计算 Schnorr 签名 $\sigma$.
+
+💡 这一版已经不再需要地址哑约束, 因为 $\sigma$ 里面编码了 `addr`.
+
+Carol 调用合约, 参数有: 
+
+* (花券 $j=3$) $\pi_j$, $h_j$, $R_j$, $\mathtt{cv}_j$.
+* (印券 $j=5$) $\pi_j$, $C_j$, $\mathtt{cv}_j$, $\mathtt{ct}_j$, $\mathtt{epk}_j$.
+* 签名 $\sigma$.
+
+ZK 证明 $\pi_3$, $\pi_5$, 核销号 $h_3$, 券承诺 $C_5$, 金额承诺 $\mathtt{cv}_5$, 加密备注 $\mathtt{ct}_5$, 加密公钥 $\mathtt{epk}_5$, 交易签名 $\sigma$, 提现地址 `addr`, 提现金额 4.
+
+### 3.4 合约受理
+
+验 $\pi_3$, $\pi_4$.
+
+验 $\sigma$, 要点如下:
+
+* 重放公钥 `bpk`, 如公式 (bpk) 所示. 但公式缺一项出金, 配不平. 按公式 (cv), 合约构造 $4V+0R$ 作为一项出金, 代入公式 (bpk).
+* 以合约参数 ($\sigma$ 除外) 为原始材料, 重放签名消息 $m$.
+* 基点设为 $R$.
+
+核销 $h_3$, 登记 $C_3$, 向 `addr` 放款 4U.
 
 ## 解锁与遗留
 
 解锁:
 
-* 电路形状解耦: 只需 spend、output 两个固定小电路, 任意 $m$ 进 $n$ 出自由拼装, 证明并行生成.
+* 电路形状解耦: 只需花券+印券两个固定小电路, 任意 $m$ 进 $n$ 出自由拼装, 证明并行生成.
 * 整笔交易焊成一体: $\sigma$ 盖住全部内容, 谁也无法把两笔交易的证明拆出来重新拼装 (mix-and-match), 也改不了 fee.
 
 遗留一件事: 一个 `sk` 只对应一个地址 `pk`. 地址一复用, 曾给同一个人打过款的发送方们就能互相比对、拼出这个收款人的画像; 而完全不复用又要管理一堆 `sk`. 进阶5 用多样化地址解决它, 顺带把 `ivk` 变成给审计方的选择性披露工具.
+

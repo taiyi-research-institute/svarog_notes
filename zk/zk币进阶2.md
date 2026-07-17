@@ -78,15 +78,15 @@ Alice 给 Bob 发送一张 $N_3=(v_3=10,\mathtt{pk_B},...)$.
 * 核销 ※. 对 [进阶1](./zk币进阶1.md) 大改. 存在 $\mathtt{sk_A}$ 使得
 
 $$
-\begin{aligned}
-\mathtt{pk_A}&=\mathrm{Hash}(\mathtt{sk_A}, \texttt{"pk"}) \\
-\land\quad h_1&=\mathrm{Hash}\big(
+h_1=\mathrm{Hash}\big(
 \rho_1,\;
 \mathrm{Hash}(\mathtt{sk_A},\texttt{"nk"})
-\big).
-\end{aligned} \tag{nf-circ}
+\big). \tag{nf-circ}
 $$
-* 身份同一性. $\mathtt{pk_A}$ 在前两条约束里都是见证. 此条约束要求它们相等.
+
+  注意核销用不到公钥, 用到的是核销密钥 $\mathtt{nk_A} = \mathrm{Hash}(\mathtt{sk_A},\texttt{"nk"})$.
+
+* 身份. $N_1$ 与 $h_1$ 依赖同一个 $\mathtt{sk_A}$: 登记约束里 $N_1$ 的地址字段满足 $\mathtt{pk_A}=\mathrm{Hash}(\mathtt{sk_A}, \texttt{"pk"})$, 式中 $\mathtt{sk_A}$ 与 (nf-circ) 用的是同一个见证 entry.
 * 守恒, 范围, 金额. 跟 [进阶1](./zk币进阶1.md) 一样.
 
 最后 Alice 给合约传证明 $\pi$ 以及公开输入.
@@ -119,7 +119,7 @@ Bob 把例2 收到的 10U 提 4U 到自己的公链地址 `addr`, 找零 6U 留�
 
 * 核销: 套用公式 (nf-circ).
 * 登记: 从 $\mathrm{Hash}(N_3)$ 沿着 $(i_3, P_3)$ 逐层哈希恰为给定的根 $R_3$.
-* 身份: 前两条约束使用相同的 $\mathtt{pk_B}$.
+* 身份: $N_3$ 与 $h_3$ 依赖同一个 $\mathtt{sk_B}$.
 * 地址, 守恒, 范围, 金额.
 
 Bob 给合约发送证明和相应的公开输入.
