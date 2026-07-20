@@ -87,7 +87,7 @@ Bob 计算
 bsk = 0 - rcv1
 ```
 
-入金侧是明文, 没有摇过任何 $\mathtt{rcv}$, 所以这一侧求和为 0. 以 `bsk` 为私钥, 以 $R$ 为基点, 基于此时已出现的 **所有合约参数** 构造签名消息 $m$, 计算 Schnorr 签名 $\sigma$.
+本次交易没有花券, 所以入金和为 0. 以 `bsk` 为私钥, 以 $R$ 为基点, 基于所有合约参数 ($\sigma$ 除外) 构造签名消息 $m$, 计算 Schnorr 签名 $\sigma$.
 
 Bob 调用合约, 参数有: ZK 证明 $\pi_1$, 券承诺 $C_1$, 金额承诺 $\mathtt{cv}_1$, 加密备注 $\mathtt{ct}_1$, 加密公钥 $\mathtt{epk}_1$, 存款金额 10, 交易签名 $\sigma$. 并随调用转账 10U.
 
@@ -154,7 +154,7 @@ bsk = (rcv1+rcv2) - (rcv3+rcv4)
 Bob 调用合约, 参数有: 
 
 * (花券 $j=1,2$) $\pi_j$, $h_j$, $R_j$, $\mathtt{cv}_j$.
-* (印券 $j=3,4$) $\pi_j$, $C_j$, $\mathtt{cv}_j$, $\mathtt{ct}_j$, $\mathtt{epk}_j$.
+* (印券 $j=3,4$) $\pi_j$, $C_j$, $\mathtt{cv}_j$, $\mathtt{ct}_j$, $\mathtt{epk}_j$. ct 和 epk 的构造方式详见 进阶3 公式 (ephgen).
 * $\sigma$.
 
 ⚠️ $C_j$ 是券 $N_j$ 在链上的公开 ID. 所以, $C_j$ 一定不能成为花券参数, 否则泄露存款人和取款人的资金链条; $C_j$ 一定要成为印券参数, 否则 $N_j$ 可以任意印发 (抵赖).
@@ -194,7 +194,7 @@ cv5 = 8*V + rcv5*R;
 
 提现到公链的 4U 不必承诺, 因为它将成为链上明文.
 
-⚠️ $\mathtt{rcv}_3$ 的记号复用, 数值必须重摇, 否则泄露 Bob - Carol 这条资金链.
+⚠️ $\mathtt{rcv}_3$ 的记号复用, 数值必须重摇, 否则 cv3 的值新老相同, 进而泄露 Bob - Carol 这条资金链.
 
 ### 3.2 出具证明
 
@@ -202,7 +202,7 @@ Carol 为花掉券 3 出具 $\pi_3$ (重载例2同名), 为印发券 5 出具 $\
 
 ### 3.3 出具签名
 
-算签名私钥 $\mathtt{bsk} = \mathtt{rcv}_3 - \mathtt{rcv}_5$, 基点设为 $R$, 基于此时已出现的 **所有合约参数** 构造签名消息 $m$, 计算 Schnorr 签名 $\sigma$.
+算签名私钥 $\mathtt{bsk} = \mathtt{rcv}_3 - \mathtt{rcv}_5$, 基点设为 $R$, 基于所有合约参数 ($\sigma$ 除外) 构造签名消息 $m$, 计算 Schnorr 签名 $\sigma$.
 
 💡 这一版已经不再需要地址哑约束, 因为 $\sigma$ 里面编码了 `addr`.
 
@@ -210,9 +210,8 @@ Carol 调用合约, 参数有:
 
 * (花券 $j=3$) $\pi_j$, $h_j$, $R_j$, $\mathtt{cv}_j$.
 * (印券 $j=5$) $\pi_j$, $C_j$, $\mathtt{cv}_j$, $\mathtt{ct}_j$, $\mathtt{epk}_j$.
+* 地址 `addr`, 金额 4.
 * 签名 $\sigma$.
-
-ZK 证明 $\pi_3$, $\pi_5$, 核销号 $h_3$, 券承诺 $C_5$, 金额承诺 $\mathtt{cv}_5$, 加密备注 $\mathtt{ct}_5$, 加密公钥 $\mathtt{epk}_5$, 交易签名 $\sigma$, 提现地址 `addr`, 提现金额 4.
 
 ### 3.4 合约受理
 

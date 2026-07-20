@@ -35,7 +35,7 @@ sk -> ivk; ivk -> pk;
 
 (2) 交易逻辑变化.
 
-登记新券时要多传两个合约参数: 临时公钥 $\mathtt{epk}$, 密文 $\mathtt{ct}$. 假设 Alice 要登记新券, 那么她要按照下式构造这两个参数.
+登记新券时要多传两个合约参数: 临时公钥 $\mathtt{epk}$, 密文 $\mathtt{ct}$. 假设 Alice 要登记新券, 那么她要按照下式构造这两个参数, ⚠️ 式中 $\mathtt{esk}$ 用完即弃.
 $$
 \begin{aligned}
 \mathtt{epk} &:= \mathtt{esk}\cdot G \\
@@ -44,8 +44,6 @@ $$
 \end{aligned}
 \tag{ephgen}
 $$
-⚠️ $\mathtt{esk}$ 用完即弃.
-
 Bob 通过扫链 + 尝试解密来确认到账. 具体来说, 用下式来重放对称加密的密钥, 并尝试解密每一条链上消息. 成功解密就相当于券 $N$ 到账.
 $$
 \mathtt{key} = \mathrm{Hash}(\mathtt{ivk_B}\cdot\mathtt{epk}).
