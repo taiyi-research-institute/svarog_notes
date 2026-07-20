@@ -1,96 +1,108 @@
-承接 [zk币进阶4](zk币进阶4.md). 进阶5 只做一件事: 让一个 `sk` 派生出大量互不关联的地址, 顺带把 "看" 的权限做成一把可以单独交出去的钥匙. 合约状态模型 (承诺树 cm + 核销表 nf) 仍然一点没变.
+# 前言
 
-## 进阶4 留下的弱点
+承接 [zk币进阶4](zk币进阶4.md). 进阶5 设立两个目标:
 
-一个 `sk` 只对应一个地址 `pk`, 于是收款人陷入两难:
+* 让一个 sk 派生出大量互不关联的地址.
+* 顺便把 "读账本" 的权限做成一把可以单独交出去的钥匙.
 
-* 复用地址. 商家把同一个 `pk` 挂在网站上, 每个付款人造券都要用它. 任何两个付款人一比对, 就知道付的是同一个人; 谁的券明文泄露, 谁的那份收款就被串进这个画像.
-* 不复用地址. 给每个收款对象单独生成一个 `sk`, 则备份、扫链、花钱的密钥管理成本全部乘上地址数 —— 尤其扫链, 每把 `ivk` 都要把全链输出试解密一遍.
+进阶4 的不足之处: 一个 sk 只对应一个地址 pk, 于是收款人陷入两难: 复用地址会留下公开画像, 不复用地址需要记忆大量 sk.
 
-想要的形态: 地址随手发、无限发, 彼此不可关联; 但钱包只保管一个 `sk`, 扫链只用一把 `ivk`.
+想要: 地址随手发、无限发, 彼此不可关联; 但钱包只保管一个 sk, 扫链只用一把 ivk.
 
 ## 结构变化
 
 ### 地址多样化
 
-回顾进阶3: 地址 $\mathtt{pk} = [\mathtt{ivk}]\,G$, 其中 $G$ 是全局固定基点. 全局固定, 所以一个 `ivk` 只能出一个地址.
+回顾进阶3: 地址 $\mathtt{pk_B} = [\mathtt{ivk_B}]\,G$, 其中 $G$ 是全局固定基点. 如此, 一个 ivk 只能出一个地址.
 
-多样化的思路: 把基点也个性化. 收款人每次发地址时:
-
-* 摇一个 diversifier $\mathtt{d}$, 算个性化基点 $g_d = \mathrm{HashToCurve}(\mathtt{d})$.
-* 地址 = 二元组 $(\mathtt{d},\ \mathtt{pkd})$, 其中 $\mathtt{pkd} = [\mathtt{ivk}]\,g_d$.
-
-同一把 `ivk` 配不同的 $\mathtt{d}$, 得到不同的地址. 在 DDH 假设下, 外人拿着两个地址 $(\mathtt{d}_1, \mathtt{pkd}_1), (\mathtt{d}_2, \mathtt{pkd}_2)$, 无法判断它们是否出自同一把 `ivk`.
-
-券里的地址字段跟着变: 券 $= (v,\ \mathtt{d},\ \mathtt{pkd},\ \rho,\ r)$,
-
-$$
-C = \mathrm{Hash}(v, \mathtt{d}, \mathtt{pkd}, \rho, r).
-$$
-
-### 加密备注跟着变
-
-进阶3 的 key agreement 里, 基点 $G$ 全部换成该地址的 $g_d$. 发送方:
-
+这一版把基点也个性化 (diversify). 收款人 Bob 每次发地址时, 计算
 $$
 \begin{aligned}
-\mathtt{epk} &= [\mathtt{esk}]\,g_d \\
-\mathtt{key} &= \mathrm{KDF}\big([\mathtt{esk}]\,\mathtt{pkd}\big).
+d &:= \mathrm{Rand}(), \\
+G_d &:= \mathrm{HashToCurve}(d), \\
+\mathtt{pkd_B} &:= \mathtt{ivk_B}\cdot G_d .
+\end{aligned}
+\tag{addr}
+$$
+地址 / 公钥定义为元组 $(\mathtt{pkd_B}, d)$. 因此券演变为
+$$
+N = \big( v,d,\mathtt{pkd_B},\rho,r \big). \tag{note}
+$$
+元组的第二个字段用 $d$ 而不用 $G_d$, 是为了在结构上强制使用 HashToCurve. 如果该字段用 $G_d$, 则死无对证, 除了制作 $G_d$ 的人, 没人知道它是否忠实地使用 HashToCurve.
+
+### 加密方式跟着变
+
+进阶3 的密钥交换演变为如下两式. 发送方 Alice 计算
+$$
+\begin{aligned}
+\mathtt{epk} &= \mathtt{esk}\cdot G_d, \\
+\mathtt{key} &= \mathrm{Hash}(\mathtt{esk} \cdot \mathtt{pkd_B}).
+\end{aligned}
+$$
+接收方计算
+$$
+\mathtt{key} = \mathrm{Hash}(\mathtt{ivk_B}\cdot \mathtt{epk}).
+$$
+注意到接收方 Hash 参数满足下式
+$$
+\mathtt{ivk_B}\cdot \mathtt{epk}
+= \mathtt{ivk_B}\cdot \mathtt{esk}\cdot G_d
+= \mathtt{esk} \cdot \mathtt{pkd_B}.
+$$
+Bob 感受到的妙处: 他只需要用同一个 $\mathtt{ivk_B}$ 就能解密别人写给他的券, 无论写的是哪个衍生公钥 $(\mathtt{pkd_B}, d)$.
+
+### 电路 (命题) 跟着变
+
+花券时的 "身份" 子命题 ($N$ 与 $h$ 依赖同一个 $\mathtt{sk}$) 演变为: 存在 $\mathtt{sk}$ 使得
+$$
+\begin{aligned}
+
+N.\mathtt{pkd} &= \mathrm{Hash}(\mathtt{sk}, \texttt{"ivk"})\cdot\mathrm{HashToCurve}(N.d) \\
+
+\land\quad h &= \mathtt{Hash}\big(
+\rho, \mathrm{Hash}(\mathtt{sk}, \,\texttt{"nk"}
+)\big).
+
 \end{aligned}
 $$
 
-收款人侧的妙处: 重建对称钥**根本不需要知道对方用的是哪个地址**,
+### ivk 的业务权限
 
-$$
-[\mathtt{ivk}]\,\mathtt{epk} = [\mathtt{ivk}][\mathtt{esk}]\,g_d = [\mathtt{esk}]\,\mathtt{pkd},
-$$
+至此, $\mathtt{ivk_B}$ 恰好演变为 Bob 可以单独交出去的 "只读钥匙". Bob 的披露是分层的:
 
-对哪个 $\mathtt{d}$ 都成立. 所以地址无限多, 扫链仍然是一把 `ivk` 对每个输出算一次 $\mathrm{KDF}([\mathtt{ivk}]\,\mathtt{epk})$, 成本不变. 解开之后再用明文里的 $\mathtt{d}$ 重算 $g_d$ 和 $\mathtt{pkd} = [\mathtt{ivk}]\,g_d$, 与承诺核对.
+* 交出 $\mathtt{ivk_B}$: 对方能重建 Bob 的全部收款记录, 但花不了钱, 也看不出哪笔收款已被花掉.
+* 再交出 $\mathtt{nk_B}$. 还能去链上查是否已花掉. 但仍然花不了钱. 🧠因为对方证明不了知道 $\mathtt{nk_B}$ 背后的 $\mathtt{sk_B}$.
+* $\mathtt{sk_B}$ 永远不交: 花钱的权力留在自己手里.
 
-### 电路 (命题) 变化
+# 例1
 
-花费时 "身份" 那条命题 ($N$ 与 $h$ 依赖同一个 `sk`) 跟着换: 存在 $\mathtt{sk}$ 使得
+例1. 商家 Bob 给每个顾客发不同地址
 
-$$
-\begin{aligned}
-\mathtt{pkd} &= \big[\mathrm{KDF}(\mathtt{sk}, \texttt{"ivk"})\big]\,\mathrm{HashToCurve}(\mathtt{d}) \\
-\land\quad h &= \mathrm{PRF}\big(\rho;\; \mathrm{KDF}(\mathtt{sk}, \texttt{"nk"})\big).
-\end{aligned}
-$$
+## 1.1 Bob 发地址
 
-⚠️ $\mathtt{pkd} = [\mathtt{ivk}]\,g_d$ 与 $g_d = \mathrm{HashToCurve}(\mathtt{d})$ 两条绑定在电路里一条都不能断. 断了意味着攻击者能给同一张券配出多把 "合法" 密钥、派生多个核销号 —— 同一张钱花多次. Zcash Orchard 出过的一个真实漏洞正是打断了 $\mathtt{pkd} = [\mathtt{ivk}]\,g_d$ 这条.
+给 Alice: 摇 $d_1$, 算 $G_{d_1}$, $\mathtt{pkd}_1$. 发送地址 $(d_1, \mathtt{pkd}_1)$.
 
-### viewing key 的权限边界
-
-到这一级, `ivk` 恰好长成了一把可以单独交出去的 "只读钥匙". 披露是分层的:
-
-* 交出 `ivk`: 对方能重建你的**全部收款记录** (覆盖所有多样化地址), 但花不了钱, 也看不出哪笔收款已被花掉 (算核销号要 `nk`).
-* 再交出 `nk`: 对方连 "花没花" 也能对出来 (拿核销号去链上核销表里查). 两把合起来即所谓 full viewing key.
-* `sk` 永远不交: 花钱的权力留在自己手里.
-
-## 例1. 商家 Bob 给每个顾客发不同地址
-
-(1) Bob 发地址.
-
-给 Alice: 摇 $\mathtt{d}_1$, 算 $g_{d_1} = \mathrm{HashToCurve}(\mathtt{d}_1)$, $\mathtt{pkd}_1 = [\mathtt{ivk}_B]\,g_{d_1}$, 发出地址 $(\mathtt{d}_1, \mathtt{pkd}_1)$.
-
-给 Carol: 摇 $\mathtt{d}_2$, 同法发出 $(\mathtt{d}_2, \mathtt{pkd}_2)$.
+给 Carol: 同理发出 $(d_2, \mathtt{pkd}_2)$.
 
 Alice 和 Carol 把地址摆在一起比, 也看不出收款方是同一个 Bob.
 
-(2) Alice、Carol 各自付款.
+## 1.2 Alice, Carol 各自付款
 
-流程与进阶3、4 完全相同, 只是造券时地址字段填 $(\mathtt{d}, \mathtt{pkd})$, 加密备注的基点用 $g_d$.
+流程与进阶 3 或 4 几乎完全相同. 只是印券时的地址字段按公式 (note) 填写, 加密备注 $\mathtt{ct}_j$ 的基点用 $G_{d_j}$.
 
-注意 $\mathtt{epk}$ 是一次性的, **每张输出券现摇一个**: Alice 这笔摇的是 $[\mathtt{esk}]\,g_{d_1}$, Carol 那笔另摇一个 $[\mathtt{esk}']\,g_{d_2}$; 即使日后 Alice 再付一笔到同一地址, 也是全新的 $\mathtt{epk}$. 长期的 `ivk` (一把管所有) 对一次性的 $\mathtt{epk}$ (一张券一个), 正是这套 key agreement 的形状.
+注意 Alice / Carol 摇的 $\mathtt{epk}$ 是一次性的, 每印一张券都要现摇一个.
 
-(3) Bob 扫链.
+## 1.3 Bob 扫链
 
-钱包对每个新输出照旧只做一件事: 算 $\mathrm{KDF}([\mathtt{ivk}_B]\,\mathtt{epk})$ 试解密. Alice 和 Carol 的两笔付款发往不同地址, 却被同一把 `ivk` 一次扫描全部认领.
+钱包对每个新输出照旧只做一件事: 算如下密钥, 试解密.
+$$
+\mathtt{key} = \mathrm{Hash}(\mathtt{ivk_B}\cdot \mathtt{epk})
+$$
+Alice 和 Carol 的两笔付款发往不同地址, 却被同一把 $\mathtt{ivk_B}$  一次扫描全部认领.
 
-(4) Bob 把 `ivk` 交给会计.
+## 1.4 Bob 把 ivk 交给会计 / 审计.
 
-会计跑与 (3) 相同的扫描, 得到 Bob 的完整收款流水 (金额、时间、来款所进的地址). 但会计没有 `sk` 花不了钱, 没有 `nk` 也看不出 Bob 花掉了哪些. Bob 若愿意连支出侧也披露, 再交 `nk`.
+会计跑与 §1.3 相同的扫描, 得到 Bob 的完整收款流水: 金额, 时间, 目标地址. 但会计没有 $\mathtt{sk_B}$ 花不了钱. 会计没有 $\mathtt{nk_B}$ 也看不出 Bob 花掉了哪些进账, 除非 Bob 主动披露.
 
 ## 拼起来就是 Zcash
 
