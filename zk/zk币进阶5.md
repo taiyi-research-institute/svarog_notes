@@ -15,52 +15,52 @@
 
 回顾进阶3: 地址 $\mathtt{pk_B} = [\mathtt{ivk_B}]\,G$, 其中 $G$ 是全局固定基点. 如此, 一个 ivk 只能出一个地址.
 
-这一版把基点也个性化 (diversify). 收款人 Bob 每次发地址时, 计算
+这一版把基点也个性化 (diversify). 收款人 Bob 每次 (第 $j$ 次) 发地址时, 计算
 $$
 \begin{aligned}
-d &:= \mathrm{Rand}(), \\
-G_d &:= \mathrm{HashToCurve}(d), \\
-\mathtt{pkd_B} &:= \mathtt{ivk_B}\cdot G_d .
+d_j &:= \mathrm{Rand}(), \\
+G_j &:= \mathrm{HashToCurve}(d_j), \\
+\mathtt{pkd}_j &:= \mathtt{ivk_B}\cdot G_j .
 \end{aligned}
 \tag{addr}
 $$
 地址 / 公钥定义为元组 $(\mathtt{pkd_B}, d)$. 因此券演变为
 $$
-N = \big( v,d,\mathtt{pkd_B},\rho,r \big). \tag{note}
+N_j = \big( v_j,d_j,\mathtt{pkd}_j,\rho_j,r_j \big). \tag{note}
 $$
-元组的第二个字段用 $d$ 而不用 $G_d$, 是为了在结构上强制使用 HashToCurve. 如果该字段用 $G_d$, 则死无对证, 除了制作 $G_d$ 的人, 没人知道它是否忠实地使用 HashToCurve.
+元组的第二个字段用 $d$ 而不用 $G$, 是为了在结构上强制使用 HashToCurve. 如果该字段用 $G$ 则死无对证, 除了制作 $G_d$ 的人, 没人知道它是否忠实地使用 HashToCurve.
 
 ### 加密方式跟着变
 
 进阶3 的密钥交换演变为如下两式. 发送方 Alice 计算
 $$
 \begin{aligned}
-\mathtt{epk} &= \mathtt{esk}\cdot G_d, \\
-\mathtt{key} &= \mathrm{Hash}(\mathtt{esk} \cdot \mathtt{pkd_B}).
+\mathtt{epk}_j &= \mathtt{esk}_j\cdot G_j, \\
+\mathtt{key}_j &= \mathrm{Hash}(\mathtt{esk}_j \cdot \mathtt{pkd}_j).
 \end{aligned}
 $$
 接收方计算
 $$
-\mathtt{key} = \mathrm{Hash}(\mathtt{ivk_B}\cdot \mathtt{epk}).
+\mathtt{key}_j = \mathrm{Hash}(\mathtt{ivk_B}\cdot \mathtt{epk}_j).
 $$
 注意到接收方 Hash 参数满足下式
 $$
-\mathtt{ivk_B}\cdot \mathtt{epk}
-= \mathtt{ivk_B}\cdot \mathtt{esk}\cdot G_d
-= \mathtt{esk} \cdot \mathtt{pkd_B}.
+\mathtt{ivk_B}\cdot \mathtt{epk}_j
+= \mathtt{ivk_B}\cdot \mathtt{esk}_j\cdot G_j
+= \mathtt{esk}_j \cdot \mathtt{pkd}_j.
 $$
-Bob 感受到的妙处: 他只需要用同一个 $\mathtt{ivk_B}$ 就能解密别人写给他的券, 无论写的是哪个衍生公钥 $(\mathtt{pkd_B}, d)$.
+Bob 感受到的妙处: 他只需要用同一个 $\mathtt{ivk_B}$ 就能解密别人写给他的券, 无论写的是哪个衍生公钥 $(\mathtt{pkd}_j, d_j)$.
 
 ### 电路 (命题) 跟着变
 
-花券时的 "身份" 子命题 ($N$ 与 $h$ 依赖同一个 $\mathtt{sk}$) 演变为: 存在 $\mathtt{sk}$ 使得
+花券时的 "身份" 子命题 ($N_j$ 与 $h_j$ 依赖同一个 $\mathtt{sk}$) 演变为: 存在 $\mathtt{sk_B}$ 使得
 $$
 \begin{aligned}
 
-N.\mathtt{pkd} &= \mathrm{Hash}(\mathtt{sk}, \texttt{"ivk"})\cdot\mathrm{HashToCurve}(N.d) \\
+N_j.\mathtt{pkd} &= \mathrm{Hash}(\mathtt{sk_B}, \texttt{"ivk"})\cdot\mathrm{HashToCurve}(N_j.d) \\
 
-\land\quad h &= \mathtt{Hash}\big(
-\rho, \mathrm{Hash}(\mathtt{sk}, \,\texttt{"nk"}
+\land\quad h_j &= \mathtt{Hash}\big(
+N_j.\rho,\, \mathrm{Hash}(\mathtt{sk_B}, \,\texttt{"nk"}
 )\big).
 
 \end{aligned}
@@ -74,7 +74,7 @@ $$
 * 再交出 $\mathtt{nk_B}$. 还能去链上查是否已花掉. 但仍然花不了钱. 🧠因为对方证明不了知道 $\mathtt{nk_B}$ 背后的 $\mathtt{sk_B}$.
 * $\mathtt{sk_B}$ 永远不交: 花钱的权力留在自己手里.
 
-# 例1
+# 例1. Bob 收款
 
 例1. 商家 Bob 给每个顾客发不同地址
 
@@ -88,7 +88,7 @@ Alice 和 Carol 把地址摆在一起比, 也看不出收款方是同一个 Bob.
 
 ## 1.2 Alice, Carol 各自付款
 
-流程与进阶 3 或 4 几乎完全相同. 只是印券时的地址字段按公式 (note) 填写, 加密备注 $\mathtt{ct}_j$ 的基点用 $G_{d_j}$.
+流程与进阶 3 或 4 几乎完全相同. 只是印券时的地址字段按公式 (note) 填写, 加密备注 $\mathtt{ct}_j$ 的基点用 $G_j$.
 
 注意 Alice / Carol 摇的 $\mathtt{epk}$ 是一次性的, 每印一张券都要现摇一个.
 
@@ -96,9 +96,9 @@ Alice 和 Carol 把地址摆在一起比, 也看不出收款方是同一个 Bob.
 
 钱包对每个新输出照旧只做一件事: 算如下密钥, 试解密.
 $$
-\mathtt{key} = \mathrm{Hash}(\mathtt{ivk_B}\cdot \mathtt{epk})
+\mathtt{key}_j = \mathrm{Hash}(\mathtt{ivk_B}\cdot \mathtt{epk}_j)
 $$
-Alice 和 Carol 的两笔付款发往不同地址, 却被同一把 $\mathtt{ivk_B}$  一次扫描全部认领.
+Alice 和 Carol 的两笔付款发往不同地址, 却被同一把 $\mathtt{ivk_B}$ 一次扫描全部认领.
 
 ## 1.4 Bob 把 ivk 交给会计 / 审计.
 
