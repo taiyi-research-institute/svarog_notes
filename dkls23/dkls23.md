@@ -1,0 +1,165 @@
+### pp3 sec1.1 "A Brief History of Threshold ECDSA"
+
+每种历史方案 = 改写 ECDSA 签名方程的方式 + 针对改写设计的算法 + 针对改写设计的防作弊检查
+
+### pp5 sec1.1 "bespoke"
+
+定制, 专用
+
+### pp6 sec1.1 "Generic Approaches"
+
+不为 ECDSA 设计专门的正确性和防作弊协议, 而是把算法丢进 MPC 电路, 如 SPDZ. 
+电路里的每一步都需要做通用的 + 与具体问题无关的认证, 比专用协议开销大得多.
+
+相关: "a factor of two in terms of bandwidth and computation"
+
+### pp7 sec1.2 "Rewriting ECDSA"
+
+```
+R := r * G;
+a := Hash(msg);
+b := R.x;
+w := (a + sk*b) * phi;
+u := r * phi
+s := w / u;
+return R, s;
+```
+
+### pp7 sec1.2 "secret shares $w$"
+
+原句: The computation of secret shares of $w$ can be performed locally by the parties given shares $\phi$ and $v = \mathtt{sk}\cdot\phi$.
+
+这句话的意思是, 在各方已经摇出 $\phi$ 的加法分片以及算出 $v$ 的加法分片后, 各方就可以本地合成 $w$ 的加法分片. 原理如下式:
+$$
+\begin{aligned}
+w &= (a+\mathtt{sk}\cdot b)\phi \\
+&= a\phi + b\cdot \mathtt{sk}\cdot \phi \\
+&= a\phi + bv.
+\end{aligned}
+$$
+
+### pp7 sec1.2 "$v$ and $u$ are computed ideally"
+
+原句: Assuming that shares of the two products $v$ and $u$ are computed ideally ...
+
+这句话的的意思是, 计算 $u$ 和 $v$ 的加法分片需要用到 MtA 协议.
+其中, $u = r\phi$, $v = \mathtt{sk}\cdot\phi$.
+
+### pp7,8 sec1.2 "a few avenues to cheat"
+
+假设 MtA 本身安全, 敌手还能靠什么歪门邪道搞破坏? 只有以下四条路:
+
+(1) 有偏的 nonce. 如果某个敌手能看到别人的 $r_i$ 分片, 适应性地调整自己的 $r_i$, 就能操纵最终 $R$ 的分布. 进而通过格攻击等手段泄露私钥.
+
+防御: commit-then-reveal. 各方先各自采样 $r_i$, 为相应的 $R_i$ 发布承诺. 等所有人都承诺完了再一起解承诺. 只要 $r$ 在承诺阶段结束前是信息论隐藏的, 敌手就不可能让自己的 $R_j$ 依赖诚实方的 $R_i$.
+
+(2) $v$ 和 $u$ 使用不一致的 $\phi$. 如果某个敌手使用不一致的 $\phi_j$, 那么会导致验签失败.
+
+防御: 不设置检查, 而是从结构上消灭使用两个 $\phi$ 的机会. 详见本文 Vector OLE 相关内容.
+
+(3) 使用不一致的 $\mathtt{sk}_i$ 或 $r_i$. 如果某个敌手使用的 $\mathtt{sk}_j$ 或 $r_j$ 与公开承诺不一致, 那么验签失败.
+
+防御: 利用 $\phi_i$ 作为顺带的 MAC key. 具体来说, MtA 算出的 $r_j \cdot \phi_i$ 顺带就是
+"以 $\phi_i$ 为密钥, 给 $r_j$ 打的 MAC". 验证挪到曲线上做.
+
+(4) 直接篡改 $v$, $u$. 后果是验签失败.
+
+防御: 因为协议跑到这里已经快要结束, 所以交给验签去拦截.
+
+追问: 途径 2 和 3 的后果也是验签失败, 为什么不能像 4 一样甩给最后一步验签?
+
+回答: 论文要防的远不止最终签名对不对, 还包括: 整个协议执行过程中, 没有任何一步会把诚实方的秘密泄露出去 (UC/模拟安全).
+
+```
+作弊发生时, 协议必须 abort; 否则诚实方会因不知情而把更多信息交给作弊方.
+```
+
+途径 4 能够甩给验签去拦截, 也是因为诚实方已经没有信息可以交出去.
+
+### 什么是 MAC
+
+MAC = Message Authentication Code. 假设 Alice 和 Bob 共享一个只有他俩知道的密钥 $k$.
+Alice 想发一条消息 $m$, 又怕被篡改, 于是她算一个标签 $t := \mathrm{Hash}(k, m)$, 把 $m, t$ 一起发给 Bob.
+然后 Bob 重放 $t$, 看跟收到的 $t$ 是否一致.
+
+### pp11 sec2.2 "malicious PPT adversary"
+
+原句: We consider a malicious PPT adversary who can statically corrupt up to $t − 1$ parties.
+
+我的疑问: corrupted parties 腐化或诚实取决于他们的自由意志. 他们或许可以把责任推给一个 adversary, 但 adversary 为什么是 PPT 的? 这让我觉得无厘头, 就好像说一位肇事司机是 PPT.
+
+PPT adversary $\mathcal{A}$ 是 "所有被腐化方合谋能干的坏事" 的数学代号.
+
+原句的每一个定(状)语都有明确的意图:
+* malicious.  坏人能不能任意偏离协议, 乱发消息? 能.
+* PPT.  坏人算力有多强? Probabilistic polynomial-time.
+* statically.  坏人什么时候决定拉拢谁? 协议开始前定好, 中途既不反悔, 也不追加.
+* up to $t-1$.  坏人最多能拉拢多少人? 不超过 $t-1$ 人.
+* 单一的 $\mathcal{A}$.  坏人之间能不能互相通气? 能, 而且安全证明要覆盖最大限度的协同作案.
+
+类比肇事司机的例子. 司机的意志/策略空间是无限自由的 (定语 malicious). 但他的车最快只能跑200码 (定语 PPT). 虽然司机的策略空间是无限自由的, 但为了方便分析, 我们追加假设司机一旦动手就不收手 (状语 statically).
+
+### pp12 sec3 "This distinction" 所在的一整段
+
+我们的(功能定义)把 ECDSA 算法当作黑盒使用, 不会提前泄露 R,
+并且在形式上把 abort (阻断此后与该功能的一切交互) 同 failed signature (不会阻断交互) 区分开来.
+这个区分在门限(签名)功能定义里很重要, 因为不应该出现这种情况:
+仅仅因为某个腐败方参与了一次签名, 以后不带他也不能签名.
+
+以上说的是 DKLs19 的缺陷.
+
+### 什么是理想功能
+
+"这个协议安全吗?" 是一句很模糊的话, 安全指什么? 不泄密? 不能被伪造? 不能被拒绝服务?
+这个清单用自然语言是列不完的, 几乎必然漏掉某个没想到的边角案例.
+
+UC 框架换了个思路. 不列清单, 而是虚构一个绝对靠谱的第三方来完成这个任务.
+这个虚构的第三方就叫理想功能 (ideal functionality).
+
+理想功能遵循通用模板:
+* 参数. 比如群 G, 参与方数量 n, 门限 t.
+* 跟诚实的参与方打交道. "当从某方 Pi 收到某消息时, 就做某事"
+* 跟敌手 S (Simulator) 打交道. 提供给 S 一份有限的命令清单. 这是 S 做坏事的能力边界.
+
+我能理解, 对于诚实参与方来说, 理想功能很像接口 / 虚函数.
+但我不理解, 凭什么敌手 S 只能运用有限的接口?
+
+实际上, 理想功能并没有限制现实世界的坏蛋 $\mathcal{A}$, 而是在做一个数学断言:
+
+💬 不管 $\mathcal{A}$ 在现实里有多离谱, 捣乱方法多么天马行空, 它给诚实方造成的后果总能被归类为几个有限的命令, 不多不少.
+
+UC 证明并不是彰显协议固若金汤的证书. 它实际上把 "协议安全吗" 这个模糊的问题, 严格地拆分为两块 (三块) 边界分明的责任:
+1. 协议逻辑安全吗? 由论文的数学证明来保证. 一旦证完, 几乎不可能是事故来源.
+2. 密码学假设安全吗? 由更基础的理论来保证. 有可能被攻破, 但理论门槛极高.
+3. 模型实现安全吗? 由实现和部署的质量来保证. 有可能留下漏洞, 如随机数复用, 旁路信道等.
+
+UC 框架还需要 Hybrid 证明, 它的职责是证明 "真实协议+$\mathcal{A}$" 和 "理想功能+$\mathcal{S}$" 无法区分. 具体来说,
+
+(1) 谁跟谁无法区分?
+
+环境 $\mathcal{Z}$ 与 (真实协议 + $\mathcal{A}$) 的交互输出, 
+与 $\mathcal{Z}$ 与 (理想功能 + $\mathcal{S}$) 的交互输出,
+这两个交互输出无法区分.
+
+$\mathcal{Z}$ 没有具体的内在结构, 它就是 "任意一台交互式图灵机".
+研究者如果追求计算安全, 那就限定它的算力为 PPT. 如果追求统计安全, 则可以无界.
+
+既然 $\mathcal{Z}$ 是 "任意的", 那么我们只能规定它的接口清单:
+1. 给诚实方写输入: 如选哪条消息签名, 选哪个门限, 何时调 Setup (keygen), 何时调 Sign. 而且可以在交互途中自适应地选.
+2. 从诚实方读输出: 如公钥, 签名, abort 信号.
+3. 与敌手自由通信. $\mathcal{Z}$ 通过
+
+(2) 为什么要无法区分?
+TODO
+
+
+(3) 如何衡量无法区分?
+Hybrid 证明的思路是在这两个交互输出之间安插若干里程碑.
+上一个里程碑相应的协议修改一处就成为当前里程碑.
+根据三角不等式, 两端的统计距离不大于相邻里程碑统计距离之和.
+
+
+
+### pp12 Functionality 3.1
+
+"If any party is corrupt ... may be attempted"
