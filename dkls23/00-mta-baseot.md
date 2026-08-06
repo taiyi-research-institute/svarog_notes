@@ -1,154 +1,154 @@
 # 为什么要做 MtA
 
-ECDSA签名就是在计算如下一组公式.
+ECDSA签名步骤如下:
+
+* $k \leftarrow \mathbb{Z}_n^*$.
+* $R := kG$, $h := R.x\bmod n$.
+* $s := k^{-1}\big(m+h \cdot \mathtt{sk}\big)$.
+* 输出 $(R, s)$.
+
+这里 $n$ 是曲线的阶, 通常是质数; 本文假设其为质数.
+
+在 MPC 中, 各玩家有随机的 $k_i$, 很容易算出 $R$. 然而算 $s$ 的时候要算 $k^{-1}$. 如果直接把 $k_i$ 加起来, 那就泄露了 $k$, 从而泄露私钥. 因此需要对 $s$ 进行变形.
+
+设非 0 随机数 $\gamma$. 则
 
 $$
-\begin{align}
-k &\leftarrow \mathbb{Z}_q^* \\
-R &= kG; \\
-s &= k^{-1}(m+R.x \cdot \mathtt{sk}).
-\end{align}
+s = (k\gamma)^{-1}(m\gamma + \mathtt{sk}\cdot h\gamma).
 $$
 
-其中, $\mathbb{Z}_q^*$ 是模 $q$ 乘法群. 对于质数 $q$ 来说, 群元素就是整数 1 到 $q$.
-左箭头 "$\leftarrow$" 表示均匀随机地选取.
+有了这个变形, MtA (Multiplication to Addition) 马上就要登场了. 我们不需要预先指定 $k, \gamma$, 而是采取一种 "先打枪再画靶子" 的方案:
 
-在 MPC 中, 各玩家有随机的 $k_i$, 很容易算出 $R$. 然而算 $s$ 的时候要算 $k^{-1}$.
-如果直接把 $k_i$ 加起来, 那就泄露了 $k$, 从而泄露私钥. 因此需要对 $s$ 进行变形.
+## MtA 理想功能
 
-设非0随机数 $\gamma$. 则
+我们要求各方生成随机秘密 $k_i$, 约定 $k=\sum_i k_i$. 类似地, 各方生成随机 $\gamma_i$, 约定 $\gamma=\sum_i \gamma_i$.
 
+然后, 对于有序的一对玩家 $(i, j)$, (这里 $i, j$ 遍历所有玩家), 我们假设存在 MtA 协议, 使得玩家 $i$ 得到秘密 $a_{i,j}$, 玩家 $j$ 得到秘密 $b_{i,j}$. 协议的理想功能可以简述为下式:
 $$
-s = (k\gamma)^{-1}\left(m\gamma + R.x \cdot (\mathtt{sk}\cdot \gamma)\right).
+a_{i,j}+b_{i,j}:=k_j\gamma_i. \tag{mta}
+$$
+公式 (mta) 中, 各变量的归属如下:
+
+* $\gamma_i$ 是玩家 $i$ 的秘密输入, $a_{i,j}$ 是玩家 $i$ 的秘密输出.
+* $k_j$ 是玩家 $j$ 的秘密输入, $b_{i,j}$ 是玩家 $j$ 的秘密输出.
+
+当 $i=j$ 时无需跑协议. 玩家 $i$ 只需在本地令 $a_{i,i}:=k_i\gamma_i$, $b_{i,i}:=0$.
+
+## 交换 a, b 份额
+
+MtA 理想功能只是算出了 $a,b$ 秘密份额. 各玩家还需交换这些份额才能算出 $k\gamma$. 交换方式如下.
+
+首先, 对每个玩家 $i$, 他持有与其他 $j\ne i$ 生成的份额 $a_{i,j}$, $b_{j,i}$ (注意不是 $b_{i,j}$), 以及本地份额 $a_{i,i}$, $b_{i,i}$. 他计算 $\sigma_i$ 如下式.
+$$
+\sigma_i = \sum_j (a_{i,j}+b_{j,i}). \tag{ex1}
+$$
+然后, 玩家 $i$ 与所有玩家明文交换 $\sigma_j$ , 求和得到 $k\gamma$ 如下式. 各方如果诚实, 必然得到相同的 $k\gamma$. 
+$$
+k\gamma  = \sum_j \sigma_j.  \tag{ex2}
+$$
+提示: 之所以 $\sigma_i$ 可以明文交换, 是因为加项分解是信息论安全的. 这保证了具体的 $a, b$ 份额不会泄露.
+
+验算一下公式 (mta, ex1, ex2) 的正确性.
+$$
+\begin{align*}
+\phantom{{}={}}\sum_{i,j} (a_{i,j}+b_{i,j})
+&=\sum_{i}(a_{i,i}+b_{i,i})\,+\,\sum_{j\ne i}(a_{i,j}+b_{i,j}) \\
+&=\sum_i k_i\gamma_i \,+\, \sum_{j\ne i}k_j\gamma_i \\
+&=\sum_{i,j}k_j\gamma_i \\
+&=k\gamma.
+\end{align*}
+$$
+仿照公式 (mta, ex1, ex2), 也可以算出 $\mathtt{sk}\cdot \gamma$.
+
+-----
+
+# 基于朴素位分解 OT 实现 MtA.
+
+今有 Sender, Receiver 两玩家, 分别持有秘密值 $x_a \bmod n$, $x_b \bmod n$. 他们要得到另外的秘密值 $y_a, y_b$, 使得
+$$
+y_a + y_b:=x_a x_b \pmod n.
 $$
 
-有了这个变形, MtA (Multiplication to Addition) 马上就要登场了.
-我们不需要预先指定 $\gamma$, 而是采取一种 "先打枪再画靶子" 的方案.
-我们要求各方生成秘密随机数 $\gamma_i$, 并约定 $\gamma=\sum_i \gamma_i$.
+怎么做? 本章介绍一种朴素的办法如下, 称为 "朴素的位分解 OT". 术语 OT = Oblivious Transfer, 翻译为 "不经意传输". 至于朴素在哪, 本章末尾会与后续笔记对比说明.
 
-然后, 对于不同的两方 $i, j$, 不妨假设 $i < j$.
-我们假设存在一种协议, 使得玩家 $i$ 得到秘密 $a_{i,j}$, 玩家 $j$ 得到秘密 $b_{i,j}$, 满足:
-
-$$
-a_{i,j}+b_{i,j}=k_j\cdot \gamma_i.
-$$
-
-简单验算一下就能知道, 把所有的 $a_{i,j}$ 和 $b_{i,j}$ 加起来就能得到 $k\gamma$. 
-各玩家得到相同的 & 明文的 $k\gamma$, 因此可以直接求逆.
-乘法因子难以分解, 这保证了 $k$ 不会泄露.
-用类似的方法可以算出 $\mathtt{sk}\cdot \gamma$.
-
-Q: 我们可能会问, a,b 两种份额都是秘密的, 怎么传输和求和呢?
-
-站在玩家 $i$ 的视角上, 他持有与其他 $j$ 生成的份额 $a_{i,j}$ 和 $b_{j,i}$.
-他把自己的 $a, b$ 份额加起来, 把这个和记为 $\sigma_i$.
-加项难以分解, 这保证了具体的 $a, b$ 份额不会泄露.
-
-# 基于位分解OT的 MtA.
-
-今有 Sender, Receiver 两玩家, 分别持有秘密值 $x_a \bmod n$, $x_b \bmod n$.
-他们要得到另外的秘密值 $y_a, y_b$, 使得
-$$
-y_a + y_b=x_a\cdot x_b \pmod n.
-$$
-
-这里 $n$ 是质数, 比如曲线的阶.
-
-怎么做? 一个朴素的办法如下, 称为 "位分解OT(不经意传输)".
-
-## 位分解的逻辑
+## 朴素位分解协议
 
 (0) Receiver 获取 $x_b$ 的二进制表示, 记为
 $$
-x_b=\sum_k d_k2^k.
+x_b=\sum_t d_t2^t. \tag{deco-repr}
 $$
 
-(1) Sender 对每个 $k$ (隐含假设: Sender 知道 $x_b$ 有多少 bit), 摇随机数 $r_k\leftarrow \mathbb{Z}_q^*$. 准备好如下两条消息.
+双方固定 $x_a, x_b$ 的最大比特长度 $\ell$. 如此, 比特下标 $t$ 取整数 0 到 $\ell-1$. 若 $x_b$ 比特数不足, 就在高位补 0.
+
+(1) Sender 对每个 $t$, 摇随机秘密 $r_t\leftarrow \mathbb{Z}_n$. 生成如下两条消息.
 $$
 \begin{align*}
-m_{k,0}&=r_k \\
-m_{k,1}&=r_k+x_a\cdot 2^k \bmod n.
-\end{align*}
+m_{t,0}&:=r_t \\
+m_{t,1}&:=r_t+x_a2^t \bmod n.
+\end{align*} \tag{deco-msg}
 $$
 
-这两条消息既不明文发送, 也不一起发送. 下一节会讲为什么.
-
-(2) 对每个 $k$, 双方执行一次 1-out-of-2 OT 协议.
-协议执行之后, Receiver 得到 $m_{k,d_k}$, 其数学意义如下式. 下一节会讲这是个什么协议.
-
+(2) 对每个 $t$, 双方执行一次二选一 OT 协议 (下一节会讲). 协议执行完毕, Receiver 得到 $m_{t,d_t}$ 如下式. 
 $$
-m_{k,d_k}=r_k + d_k\cdot x_a\cdot 2^k \bmod n
+m_{t,d_t}:=r_t + d_tx_a2^t \bmod n \tag{deco-md}
 $$
 
 (3) Sender 和 Receiver计算各自的本地份额 
 $$
 \begin{align}
-y_a&=-\sum_k r_k \bmod n; \\
-y_b&=\sum_k m[k,d_k] \bmod n.
-\end{align}
+y_a&:=-\sum_t r_t \bmod n; \\
+y_b&:=\sum_t m_{t,d_t} \bmod n.
+\end{align} \tag{deco-out}
 $$
 
-(Finally...) 验算一下.
+位分解协议至此结束. 验算一下.
 
 $$
 \begin{align}
-y_b&=\sum_k\left( r_k + d_k \cdot x_a\cdot 2^k \right) \\
-&=\sum_k r_k + x_a \sum_k d_k2^k \\
-&=-y_a+x_a\cdot x_b.
+y_b&=\sum_t\left( r_t + d_tx_a2^t \right) \\
+&=\sum_t r_t + x_a \sum_t d_t2^t \\
+&=-y_a+x_a x_b.
 \end{align}
 $$
 
-## OT 的逻辑
+## 朴素二选一 OT 协议
 
-在位分解的第2步中, 
-<mark style="background-color: yellow; color: red;">
-Receiver 不可以把 $d_k$ 发给 Sender, 因为 Sender 集齐所有 $d_k$ 就能算出 $x_b$.
-Sender 也不可以把 $m_{k,0}$ 和 $m_{k,1}$ 都发给 Receiver, 因为 Receiver 把二者相减就得到 $x_a$.
-</mark>
+位分解协议的步骤 (2) 依赖 OT 子协议. 这个协议的 "规格" 如下:
 
-问题来了, <mark style="background-color: yellow; color: red;">Sender 如何隐蔽地提供选项? Receiver 如何隐蔽地做出选择?</mark>
+* Sender 提供两条消息, Receiver 选择其中一条.
+* Receiver 只能看到他所选的那一条消息, 看不到另外一条.
+* Sender 不知道 Receiver 选的是哪一条.
 
-核心思想是:
+为了实现上述规格, OT 的思路是: Sender 和 Receiver 为两条消息分别约定密钥. Sender 拿到两个密钥. Receiver 只能算出他所选的消息所对应的密钥, 算不出另一个密钥.
 
-<mark style="background-color: yellow; color: red;">为每个选择约定一个密钥, 这叫做 OT 密钥交换.
-用密钥加密相应的选项, 进行不经意传输.</mark>
+我们假设 Receiver 要在 $\left\{0, 1\right\}$ 中选 $d$. 实施流程描述如下:
 
-实施方式如下.
-
-### OT 密钥交换
-
-我们假设 Receiver 要在 $\left\{0, 1\right\}$ 中选 $d$.
-
-(1)
-
-Sender 摇随机数 $\alpha \leftarrow \mathbb{Z}_q^*$. 计算 $A:=\alpha G$ 发给 Receiver. 
-
-💡 $\alpha$ 是随机的, $\alpha G$ 什么都泄露不了.
-
-(2)
-
-Receiver 摇随机数 $\beta \leftarrow \mathbb{Z}_q^*$. 计算
+(1) Sender 摇随机数 $\alpha \leftarrow \mathbb{Z}_n^*$. 计算下式, 发给 Receiver.
 $$
-B=\begin{cases}
+A:=\alpha G \tag{ot-acom}
+$$
+(2) Receiver 摇随机数 $\beta \leftarrow \mathbb{Z}_n^*$. 计算下式, 发给 Sender. 虽然公式里已经体现出来, 但还是要强调, 只发所选的那一个.
+
+$$
+B:=\begin{cases}
 \beta G & \textrm{if~} d=0, \\
 \beta G+A & \textrm{if~} d=1,
-\end{cases}
+\end{cases} \tag{ot-bcom}
 $$
-然后发给 Sender. 虽然公式里已经体现出来, 但还是要强调, 只发给其中一个.
-
-💡 $\beta G$ 是均匀随机的. 因此 Sender 无法区分收到的是 $\beta G$ 还是 $\beta G+A$.
+提示: $\beta G$ 几乎是均匀随机的. Sender 无法区分收到的是 $\beta G$ 还是 $\beta G+A$.
 
 
-(3)
+(3) Sender 计算两个密钥
 
-Sender 计算两个密钥
 $$
-K_0=\mathrm{Hash}(\alpha B), K_1=\mathrm{Hash}(\alpha(B-A)).
+\begin{align*}
+K_0 &:= \mathrm{Hash}(\alpha B), \\
+K_1 &:= \mathrm{Hash}(\alpha(B-A)).
+\end{align*} \tag{ot-keys}
 $$
 
-(小结)
+(小结) 实际上, 在 $d=0$ 时,
 
-实际上, 在 $d=0$ 时,
 $$
 K_0=\mathrm{Hash}(\alpha \beta G), K_1=\mathrm{Hash}(\alpha\beta G - \alpha^2 G);
 $$
@@ -158,18 +158,35 @@ $$
 K_0=\mathrm{Hash}(\alpha\beta G + \alpha^2 G), K_1=\mathrm{Hash}(\alpha\beta G).
 $$
 
-这使得 Receiver 在 $K_0$ 和 $K_1$ 之中恰好知道他所选的那个.
-而另外一个被均匀随机项 $\alpha^2 G$ 干扰, 从而 Receiver 无法知道.
+Receiver 无法计算 $\pm\alpha^2 G$, 使得 Receiver 算不出另一个密钥. Sender 无法区分 $\beta G$ 和 $\beta G+A$, 使得 Sender 不知道对方选的是什么.
 
-### 传输所选内容
+(4) Sender 计算如下两个对称加密的密文, 都发给 Receiver.
 
-我们假设 Receiver 要在 $\left\{0, 1\right\}$ 中选 $d$.
-
-Sender 计算两个对称加密的密文,
 $$
-C_0=\mathrm{Enc}(K_0, m_0), C_1=\mathrm{Enc}(K_1, m_1),
+\begin{align*}
+C_0 &:= \mathrm{Enc}(K_0, m_0), \\
+C_1 &:= \mathrm{Enc}(K_1, m_1).
+\end{align*} \tag{ot-cts}
 $$
-
-然后把两个密文都发给 Receiver.
 
 Receiver 只能算出一个密钥, 就是 $K_d=\mathrm{Hash}(\beta A)$. 其恰好等于 $K_0, K_1$ 中的某一个. 这就让 Receiver 只能解密两个密文中的一个, 解不开另一个.
+
+## 朴素在哪
+
+本章方案功能完备, 正确性也没有问题. 说它朴素, 是和后续笔记 (01 至 07) 的方案对比出来的. 短板有两条.
+
+(1) 太贵: 椭圆曲线运算量跟着比特数走, 且无法摊销.
+
+每个比特 $t$ 都要跑一次基于椭圆曲线的二选一 OT, 一次 OT 约有 5 次点乘 ($\alpha G$, $\beta G$, $\alpha B$, $\alpha(B-A)$, $\beta A$). 一次 MtA 有 $\ell\approx 256$ 个比特; 每次签名, 每个有序玩家对 $(i,j)$ 要跑 2 个 MtA ($k\gamma$ 和 $\mathtt{sk}\cdot\gamma$ 各一个). 也就是说, 每签一次名, 每对玩家就要做几千次点乘. 而且 $\alpha, \beta$ 都是现摇的, 没有任何东西能跨签名复用.
+
+后续笔记的路线是 "OT 扩展": 椭圆曲线只在 keygen 阶段跑 $\kappa=256$ 次 base OT (`03-endemic-ot.md`), 生成可长期保存的种子 (`04-pprf.md`); 签名阶段吃这些种子, 用哈希/异或等对称运算扩展出任意多的 OT 实例 (`01-iknp03.md`, `05-softspoken.md`). 对称运算比椭圆曲线便宜若干数量级, 详见 `01-iknp03.md` 的小结 (密钥交换 "基于异或运算的消去律" 而非椭圆曲线), 以及 `06-rvole.md` 末尾的讨论 "Keygen 真正摊销的是什么".
+
+(2) 只防半诚实, 不防恶意: 协议没有任何一致性检查.
+
+本章协议处处信任对方按剧本出牌. 一个典型攻击: 恶意 Sender 在第 $t^*$ 位用 $x_a'\ne x_a$ 构造 (deco-msg), 其余位诚实. 则两份额之和变成
+$$
+y_a+y_b=x_ax_b+d_{t^*}(x_a'-x_a)2^{t^*}.
+$$
+当 $d_{t^*}=0$ 时下游签名照常成功, 当 $d_{t^*}=1$ 时签名失败. Sender 观察成败, 就白得了 $x_b$ 的一个比特, 代价只是一场失败的会话. 这叫 selective failure 攻击. 多场会话反复试探的后果, 详见 `02-kos15.md` 的 "追问2".
+
+后续笔记的一致性检查正是冲着这类攻击去的: `06-rvole.md` 的校验负载抓在不同 OT 实例上使用不一致 $w$ 的 Sender, 与上述攻击同型; `02-kos15.md` 的挑战-响应则抓 OT 扩展里篡改 $u$ 矩阵的 Receiver. 顺带一提, 就连 base OT 本身, DKLs23 也不用本章的朴素二选一 OT, 而是用安全定义更清晰的 Endemic OT (`03-endemic-ot.md`).
