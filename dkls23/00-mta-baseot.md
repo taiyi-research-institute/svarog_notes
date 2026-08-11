@@ -9,7 +9,7 @@ ECDSA签名步骤如下:
 
 这里 $n$ 是曲线的阶, 通常是质数; 本文假设其为质数.
 
-在 MPC 中, 各玩家有随机的 $k_i$, 很容易算出 $R$. 然而算 $s$ 的时候要算 $k^{-1}$. 如果直接把 $k_i$ 加起来, 那就泄露了 $k$, 从而泄露私钥. 因此需要对 $s$ 进行变形.
+在 MPC 中, 各参与方有随机的 $k_i$, 很容易算出 $R$. 然而算 $s$ 的时候要算 $k^{-1}$. 如果直接把 $k_i$ 加起来, 那就泄露了 $k$, 从而泄露私钥. 因此需要对 $s$ 进行变形.
 
 设非 0 随机数 $\gamma$. 则
 
@@ -23,26 +23,26 @@ $$
 
 我们要求各方生成随机秘密 $k_i$, 约定 $k=\sum_i k_i$. 类似地, 各方生成随机 $\gamma_i$, 约定 $\gamma=\sum_i \gamma_i$.
 
-然后, 对于有序的一对玩家 $(i, j)$, (这里 $i, j$ 遍历所有玩家), 我们假设存在 MtA 协议, 使得玩家 $i$ 得到秘密 $a_{i,j}$, 玩家 $j$ 得到秘密 $b_{i,j}$. 协议的理想功能可以简述为下式:
+然后, 对于有序的一对参与方 $(i, j)$, (这里 $i, j$ 遍历所有参与方), 我们假设存在 MtA 协议, 使得参与方 $i$ 得到秘密 $a_{i,j}$, 参与方 $j$ 得到秘密 $b_{i,j}$. 协议的理想功能可以简述为下式:
 $$
 a_{i,j}+b_{i,j}:=k_j\gamma_i. \tag{mta}
 $$
 公式 (mta) 中, 各变量的归属如下:
 
-* $\gamma_i$ 是玩家 $i$ 的秘密输入, $a_{i,j}$ 是玩家 $i$ 的秘密输出.
-* $k_j$ 是玩家 $j$ 的秘密输入, $b_{i,j}$ 是玩家 $j$ 的秘密输出.
+* $\gamma_i$ 是参与方 $i$ 的秘密输入, $a_{i,j}$ 是参与方 $i$ 的秘密输出.
+* $k_j$ 是参与方 $j$ 的秘密输入, $b_{i,j}$ 是参与方 $j$ 的秘密输出.
 
-当 $i=j$ 时无需跑协议. 玩家 $i$ 只需在本地令 $a_{i,i}:=k_i\gamma_i$, $b_{i,i}:=0$.
+当 $i=j$ 时无需跑协议. 参与方 $i$ 只需在本地令 $a_{i,i}:=k_i\gamma_i$, $b_{i,i}:=0$.
 
 ## 交换 a, b 份额
 
-MtA 理想功能只是算出了 $a,b$ 秘密份额. 各玩家还需交换这些份额才能算出 $k\gamma$. 交换方式如下.
+MtA 理想功能只是算出了 $a,b$ 秘密份额. 各参与方还需交换这些份额才能算出 $k\gamma$. 交换方式如下.
 
-首先, 对每个玩家 $i$, 他持有与其他 $j\ne i$ 生成的份额 $a_{i,j}$, $b_{j,i}$ (注意不是 $b_{i,j}$), 以及本地份额 $a_{i,i}$, $b_{i,i}$. 他计算 $\sigma_i$ 如下式.
+首先, 对每个参与方 $i$, 他持有与其他 $j\ne i$ 生成的份额 $a_{i,j}$, $b_{j,i}$ (注意不是 $b_{i,j}$), 以及本地份额 $a_{i,i}$, $b_{i,i}$. 他计算 $\sigma_i$ 如下式.
 $$
 \sigma_i = \sum_j (a_{i,j}+b_{j,i}). \tag{ex1}
 $$
-然后, 玩家 $i$ 与所有玩家明文交换 $\sigma_j$ , 求和得到 $k\gamma$ 如下式. 各方如果诚实, 必然得到相同的 $k\gamma$. 
+然后, 参与方 $i$ 与所有参与方明文交换 $\sigma_j$ , 求和得到 $k\gamma$ 如下式. 各方如果诚实, 必然得到相同的 $k\gamma$. 
 $$
 k\gamma  = \sum_j \sigma_j.  \tag{ex2}
 $$
@@ -64,7 +64,7 @@ $$
 
 # 基于朴素位分解 OT 实现 MtA.
 
-今有 Sender, Receiver 两玩家, 分别持有秘密值 $x_a \bmod n$, $x_b \bmod n$. 他们要得到另外的秘密值 $y_a, y_b$, 使得
+今有 Sender, Receiver 两参与方, 分别持有秘密值 $x_a \bmod n$, $x_b \bmod n$. 他们要得到另外的秘密值 $y_a, y_b$, 使得
 $$
 y_a + y_b:=x_a x_b \pmod n.
 $$
@@ -73,9 +73,19 @@ $$
 
 ## 朴素位分解协议
 
+### 规格 (≈ 理想功能)
+
+输入 $x_a, x_b$, 输出 $y_a, y_b$. Sender / Alice 持有下标 $a$, Receiver / Bob 持有下标 $b$. 满足
+$$
+y_a+y_b:=x_ax_b \bmod n.
+$$
+双方固定 $x_a, x_b$ 的最大比特长度 $\ell$. 如此, 比特下标 $t$ 取整数 0 到 $\ell-1$. 若 $x_b$ 比特数不足, 就在高位补 0.
+
+### 实施
+
 (0) Receiver 获取 $x_b$ 的二进制表示, 记为
 $$
-x_b=\sum_t d_t2^t. \tag{deco-repr}
+\sum_{t=0}^{\ell-1} d_t2^t ~=~ x_b. \tag{deco-repr}
 $$
 
 双方固定 $x_a, x_b$ 的最大比特长度 $\ell$. 如此, 比特下标 $t$ 取整数 0 到 $\ell-1$. 若 $x_b$ 比特数不足, 就在高位补 0.
@@ -88,15 +98,15 @@ m_{t,1}&:=r_t+x_a2^t \bmod n.
 \end{align*} \tag{deco-msg}
 $$
 
-(2) 对每个 $t$, 双方执行一次二选一 OT 协议 (下一节会讲). 协议执行完毕, Receiver 得到 $m_{t,d_t}$ 如下式. 
+(2) 对每个 $t$, 双方执行一次二选一 OT 协议 (下一节会讲). 之后, Receiver 得到 $m_{t,d_t}$ 如下式. 
 $$
-m_{t,d_t}:=r_t + d_tx_a2^t \bmod n \tag{deco-md}
+m_{t,d_t}:=r_t + d_tx_a2^t \bmod n. \tag{deco-md}
 $$
 
 (3) Sender 和 Receiver计算各自的本地份额 
 $$
 \begin{align}
-y_a&:=-\sum_t r_t \bmod n; \\
+y_a&:=-\sum_t m_{t,0} \bmod n; \\
 y_b&:=\sum_t m_{t,d_t} \bmod n.
 \end{align} \tag{deco-out}
 $$
@@ -113,26 +123,26 @@ $$
 
 ## 朴素二选一 OT 协议
 
-位分解协议的步骤 (2) 依赖 OT 子协议. 这个协议的 "规格" 如下:
+### 规格 (≈ 理想功能)
 
-* Sender 提供两条消息, Receiver 选择其中一条.
-* Receiver 只能看到他所选的那一条消息, 看不到另外一条.
-* Sender 不知道 Receiver 选的是哪一条.
+输入: Sender 的两条消息 $m_1, m_2$; Receiver 的选择 $d\in\left\{0,1\right\}$.
 
-为了实现上述规格, OT 的思路是: Sender 和 Receiver 为两条消息分别约定密钥. Sender 拿到两个密钥. Receiver 只能算出他所选的消息所对应的密钥, 算不出另一个密钥.
+输出: Receiver 得到 $m_d$.
 
-我们假设 Receiver 要在 $\left\{0, 1\right\}$ 中选 $d$. 实施流程描述如下:
+安全承诺: Receiver 得不到另一条消息, Sender 不知道选什么. 即: Receiver 得不到 $m_{1-d}$, Sender 得不到 $d$.
+
+### 实施
 
 (1) Sender 摇随机数 $\alpha \leftarrow \mathbb{Z}_n^*$. 计算下式, 发给 Receiver.
 $$
-A:=\alpha G \tag{ot-acom}
+A:=\alpha G. \tag{ot-acom}
 $$
 (2) Receiver 摇随机数 $\beta \leftarrow \mathbb{Z}_n^*$. 计算下式, 发给 Sender. 虽然公式里已经体现出来, 但还是要强调, 只发所选的那一个.
 
 $$
 B:=\begin{cases}
 \beta G & \textrm{if~} d=0, \\
-\beta G+A & \textrm{if~} d=1,
+\beta G+A & \textrm{if~} d=1.
 \end{cases} \tag{ot-bcom}
 $$
 提示: $\beta G$ 几乎是均匀随机的. Sender 无法区分收到的是 $\beta G$ 还是 $\beta G+A$.
@@ -147,10 +157,24 @@ K_1 &:= \mathrm{Hash}(\alpha(B-A)).
 \end{align*} \tag{ot-keys}
 $$
 
-(小结) 实际上, 在 $d=0$ 时,
+ Sender 计算如下两个对称加密的密文, 发给 Receiver.
 
 $$
-K_0=\mathrm{Hash}(\alpha \beta G), K_1=\mathrm{Hash}(\alpha\beta G - \alpha^2 G);
+\begin{align*}
+C_0 &:= \mathrm{Enc}(K_0, m_0), \\
+C_1 &:= \mathrm{Enc}(K_1, m_1).
+\end{align*} \tag{ot-cts}
+$$
+
+(4) Receiver 计算一个密钥.
+$$
+K_d:=\mathrm{Hash}(\beta A).
+$$
+用这个密钥解开 $C_d$ 得到 $m_d$, 解不开 $C_{1-d}$. 协议至此结束.
+
+(小结) 实际上, 在 $d=0$ 时,
+$$
+K_0=\mathrm{Hash}(\alpha \beta G), K_1=\mathrm{Hash}(\alpha\beta G - \alpha^2 G).
 $$
 
 而在 $d=1$ 时,
@@ -160,24 +184,15 @@ $$
 
 Receiver 无法计算 $\pm\alpha^2 G$, 使得 Receiver 算不出另一个密钥. Sender 无法区分 $\beta G$ 和 $\beta G+A$, 使得 Sender 不知道对方选的是什么.
 
-(4) Sender 计算如下两个对称加密的密文, 都发给 Receiver.
+-----
 
-$$
-\begin{align*}
-C_0 &:= \mathrm{Enc}(K_0, m_0), \\
-C_1 &:= \mathrm{Enc}(K_1, m_1).
-\end{align*} \tag{ot-cts}
-$$
+# 朴素在哪
 
-Receiver 只能算出一个密钥, 就是 $K_d=\mathrm{Hash}(\beta A)$. 其恰好等于 $K_0, K_1$ 中的某一个. 这就让 Receiver 只能解密两个密文中的一个, 解不开另一个.
-
-## 朴素在哪
-
-本章方案功能完备, 正确性也没有问题. 说它朴素, 是和后续笔记 (01 至 07) 的方案对比出来的. 短板有两条.
+前文提出的 "基于位分解和 2 选 1 OT 的 MtA" 功能完备, 正确性也没有问题. 说它朴素, 是和后续笔记 (01 至 07) 对比出来的. 短板有两条.
 
 (1) 太贵: 椭圆曲线运算量跟着比特数走, 且无法摊销.
 
-每个比特 $t$ 都要跑一次基于椭圆曲线的二选一 OT, 一次 OT 约有 5 次点乘 ($\alpha G$, $\beta G$, $\alpha B$, $\alpha(B-A)$, $\beta A$). 一次 MtA 有 $\ell\approx 256$ 个比特; 每次签名, 每个有序玩家对 $(i,j)$ 要跑 2 个 MtA ($k\gamma$ 和 $\mathtt{sk}\cdot\gamma$ 各一个). 也就是说, 每签一次名, 每对玩家就要做几千次点乘. 而且 $\alpha, \beta$ 都是现摇的, 没有任何东西能跨签名复用.
+每个比特 $t$ 都要跑一次基于椭圆曲线的二选一 OT, 一次 OT 约有 5 次点乘 ($\alpha G$, $\beta G$, $\alpha B$, $\alpha(B-A)$, $\beta A$). 一次 MtA 有 $\ell\approx 256$ 个比特; 每次签名, 每个有序参与方对 $(i,j)$ 要跑 2 个 MtA ($k\gamma$ 和 $\mathtt{sk}\cdot\gamma$ 各一个). 也就是说, 每签一次名, 每对参与方就要做几千次点乘. 而且 $\alpha, \beta$ 都是现摇的, 没有任何东西能跨签名复用.
 
 后续笔记的路线是 "OT 扩展": 椭圆曲线只在 keygen 阶段跑 $\kappa=256$ 次 base OT (`03-endemic-ot.md`), 生成可长期保存的种子 (`04-pprf.md`); 签名阶段吃这些种子, 用哈希/异或等对称运算扩展出任意多的 OT 实例 (`01-iknp03.md`, `05-softspoken.md`). 对称运算比椭圆曲线便宜若干数量级, 详见 `01-iknp03.md` 的小结 (密钥交换 "基于异或运算的消去律" 而非椭圆曲线), 以及 `06-rvole.md` 末尾的讨论 "Keygen 真正摊销的是什么".
 
