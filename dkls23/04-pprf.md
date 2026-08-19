@@ -1,159 +1,166 @@
-# PPRF 算法和数据结构笔记
+﻿`01-iknp03.md` 末节 "半诚实的边界" 第 (3) 条路线在此展开: SoftSpokenOT 要把二选一 OT 升级成 $2^k$ 选一, 升级的载体就是本篇的 PPRF (Puncturable PRF, 可打孔伪随机函数) —— 用 $k$ 个二选一 Base OT 合成一棵 $q = 2^k$ 叶的 GGM 树, Sender 得到全部叶子, Receiver 得到除打孔叶子之外的一切. Base OT 的实施见 `03-endemic-ot.md`, 下游消费见 `05-softspoken.md`. 本篇只讨论二叉的情况.
 
-本文仅讨论 $p=2$ 的情况.
+# 1. 介绍 GGM 树
 
-## 设置
+GGM 树是一棵完美二叉树, 深度为 $k$, 叶子数 $q=2^k$. 第 $i$ 层有 $2^i$ 个节点, 节点在层内的编号为 $y\in [0, 2^i)$. 节点内容是长度 $\lambda$ 的比特串, 记为 $\mathcal{T}^i_y \in \left\{0, 1\right\}^\lambda$.
 
-伪随机数生成器 (PRG), 在工程中就是哈希函数, 定义为
-$\mathrm{Ha}: \mathbb{B}^\lambda\rightarrow\mathbb{B}^{2\lambda}$ . 
-我们把输出切分为长度相等的两块,
-左边记为 $\mathrm{HaL}(\cdot)$, 右边记为为 $\mathrm{HaR}(\cdot)$.
+$\lambda$ 是计算安全参数. 其数值沿用 `01-iknp03.md` 的约定 $\lambda = \kappa$, 但两个记号分工不同: $\kappa$ 是 OT 实例数/矩阵行数, $\lambda$ 只是比特串的长度.
 
-GGM 树是一棵完美二叉树, 深度为 $k$, 叶子数 $q=2^k$.
-第 $i$ 层有 $2^i$ 个节点, 节点在层内的编号为 $y\in [2^i]$, 节点内容记为 $\mathcal{T}^i_y$.
-
-每个内部节点有两个孩子, 
+记 $\mathtt{PRF}: \left\{0,1\right\}^* \rightarrow \left\{0,1\right\}^{2\lambda}$, 入参为域分离参数与父节点内容, 出参对半切开分给两个孩子. 节点 $\mathcal{T}^i_y$ 的左孩子记为 $\mathcal{T}^{i+1}_{2y}$, 右孩子记为 $\mathcal{T}^{i+1}_{2y+1}$, 父子节点的关系为
 $$
-\mathcal{T}^{i+1}_{2y}=\mathrm{HaL}(\mathcal{T}^i_y),\; \mathcal{T}^{i+1}_{2y+1}=\mathrm{HaR}(\mathcal{T}^i_y).
+\mathcal{T}^{i+1}_{2y} \mathbin{\|} \mathcal{T}^{i+1}_{2y+1} := \mathtt{PRF}(\mathtt{sid},\, \mathtt{tid},\, \mathtt{tag1},\, \mathcal{T}^i_y).
+\tag{step}\label{step}
 $$
 
-Receiver 持有打孔点 $y\in[2^k]$, 目标是学到 $\left\{\mathcal{T}^k_z: z\neq y\right\}$,
-但不知道 $\left\{\mathcal{T}^k_y\right\}$.
+PPRF 树有一个用不上的根节点, 视其为第 0 层.
 
-## Base OT 中的角色
+所谓 "打孔": Receiver 持有打孔下标 $y\in[0, 2^k)$, 目标是学到未打孔节点 $\left\{\mathcal{T}^k_z: z\neq y\right\}$, 但学不到打孔节点 $\mathcal{T}^k_y$.
 
-Receiver 沿着树走到打孔点的节点下标记为 $y_1, y_2, \dots, y_k$. 这条路径叫做 active path.
-其中 $y_{i+1}=2y_i+\bar{\beta}_i$, $\beta_i\in \mathbb{B}$ 是第 $i$ 层 base OT 的选择位 (= Receiver 解出的非打孔方向), $\bar{\beta}_i = 1 - \beta_i$ 即该层的打孔方向.
-显然 $y_k=y$.
+# 2. PPRF 协议
 
-Receiver 在第 $i+1$ 层 "想去" 的节点下标是 $2y_i + \beta_i$, 也就是 active path 节点的兄弟.
+## 2.1. 规格
 
-第 $i$ 个 base OT 的接口 ($0 \le i < k$):
+输入: 双方先跑 $k$ 个 Base OT (详见 `03-endemic-ot.md`).
 
-* Sender 输入/输出: 两个随机串 $\rho^i_0, \rho^i_1\in \mathbb{B}^\lambda$.
-* Receiver 输入: 选择位 $\beta_i\in \mathbb{B}$.
-* Receiver 输出: $\rho^i_{\beta_i}$ .
+* Sender 得到两侧串 $\left\{\left(\rho_i^0, \rho_i^1\right)\right\}$, $i\in[0, k)$, 作为本协议的输入.
+* Receiver 得到选择位 $\beta_i$ 与单侧串 $\rho_i^{\beta_i}$, 作为本协议的输出.
 
-直观上, $\rho^i_b$ 相当于第 $i+1$ 层 "所有 $b$ 侧孩子的合成密钥". Receiver 拿到兄弟方向那一侧的合成密钥, 从中可以解出兄弟节点本身.
+输出:
 
-> 记号说明: $\rho^i_b$ 即 `notes/03-endemic-ot.md` 中 endemic OT 的输出密钥 $\rho_b$, 上标 $i$ 是 base OT 实例编号 ($0\le i < k$, $k = \log Q$).
+* Sender 得到整个叶子层, 记为 $G: z \mapsto \mathcal{T}^k_z$, 共 $q$ 个叶子.
+* Receiver 得到打孔点 $y$ 与打孔树 $G^*$, 即除 $z = y$ 外的所有叶子.
 
-## Sender 进行 BuildPPRF
+安全承诺:
 
-Sender 拥有所有 $k$ 个 base OT 的两侧串 $\{(\rho^i_0, \rho^i_1)\}$, 实例编号 $0\le i < k$.
+* Sender 学不到 $y$.
+* Receiver 学不到打孔叶子 $\mathcal{T}^k_y$.
+* 一致性: 协议正常结束时, 双方的非打孔叶子相同. 恶意 Sender 掺假而不败露的概率见 §2.3.1.
 
-Sender 初始化第 1 层:
+安全假设:
+
+* Sender 恶意: 他可以篡改修正值, 由 2.2.(2)/2.2.(4) 的证明-验证来防御.
+* Receiver 恶意也无妨: 本协议中 Receiver 零上行消息, 没有作恶的载体.
+* Base OT 来历合规: 种子确实是 endemic OT 的输出, 其安全承诺 ($\beta_i$ 与 $\rho_i^{1-\beta_i}$ 对外均匀随机) 未被破坏.
+* $\mathtt{PRF}$, $\mathtt{Hash}$ 视作随机预言机.
+
+## 2.2. 实施
+
+### 2.2.(1) Sender 建树, 出具逐层密文 (BuildPPRF)
+
+先讲本节的密码学意义. 修正值 $t_i^b$ 的身份是密文: 以合成密钥 $\rho_i^b$ 为一次一密密钥, 加密 "第 $i+1$ 层 $b$ 侧孩子的异或和". 持有 $\rho_i^b$ 的一方恰能解出该层唯一缺失的兄弟节点, 拿不到 $\rho_i^b$ 的一方毫无所获.
+
+Sender 按公式 $\eqref{base}$ 构建第 $i=1$ 的两个节点. 随后按公式 $\eqref{step}$ 递归地构建节点, 直到构建出第 $i+1=k$ 层 (即叶子层) 的所有节点.
 $$
-\mathcal{T}^1_0 := \rho^0_0, \quad \mathcal{T}^1_1 := \rho^0_1. \tag{first-layer}
+\mathcal{T}^1_0 := \rho_0^0, \quad \mathcal{T}^1_1 := \rho_0^1.
+\tag{base}\label{base}
 $$
+我们不妨假设这棵树有一个用不上的根节点, 视其为第 0 层.
 
-注意这棵树有一个用不上的根节点, 我们视其为第 0 层.
-
-Sender 基于第 $i$ 层构建第 $i+1$ 层.
-对第 $i$ 层 ($1\le i < k$) 的第 $z \in [2^i]$ 节点, Sender 计算:
+接下来, 对第 $i, i\in[1, k)$ 层计算两个修正值
 $$
-\mathcal{T}^{i+1}_{2z} := \mathrm{HaL}(\mathcal{T}^i_z), \quad \mathcal{T}^{i+1}_{2z+1} := \mathrm{HaR}(\mathcal{T}^i_z). \tag{next-layer}
+t_i^b :=
+\rho_i^b \oplus \bigoplus_{y \in [0, 2^i)} \mathcal{T}^{i+1}_{2y + b},
+\quad
+b \in \left\{0,1\right\}.
+\tag{corr}\label{corr}
 $$
+Sender 发送所有 $(t_i^0, t_i^1)$, $i\in[1, k)$.
 
-Sender 为除初始化层之外的每一层计算一对修正值 $t^i_0, t^i_1$.
-对第 $i$ 层 ($1\le i < k$), Sender 计算:
+Sender 输出所有叶子节点, 记为 $G: z \mapsto \mathcal{T}^k_z$.
 
+### 2.2.(2) Sender 承诺叶子 (ProvePPRF)
+
+仅有 BuildPPRF 还不够. 恶意 Sender 可以把某层修正值 $t_i^b$ 替换成乱数, 让 Receiver 顺着错误的 $\mathcal{T}^{i+1}_{2y_i + \beta_i}$ 一路向下, 最终得到一棵跟 Sender 不一致的子树, 而 Receiver 自己察觉不到. 为此 SoftSpokenOT 原文 (Roy, CRYPTO'22, eprint 2022/192, Fig. 14; BuildPPRF/EvalPPRF 是同文 Fig. 13, DKLS23 引用其做 OT 扩展) 在 BuildPPRF 末尾追加一段 "叶子层一致性证明".
+
+Sender 对每个叶子算一个长度 $2\lambda$ 的标签. 注意 $\mathtt{tag2}$ 把它与 $\eqref{step}$ 的节点派生隔离开:
 $$
-t^i_b := \rho^i_b \oplus \bigoplus_{z \in [2^i]} \mathcal{T}^{i+1}_{2z + b}. \tag{correction}
-$$
-
-Sender 输出这棵树, 记为 $G: z \mapsto \mathcal{T}^k_z$.
-注意: 输出不是传输, 传输也不是输出, 不要看到 "输出" 就产生 "告诉另一方" 的联想.
-
-## Sender 进行 ProvePPRF
-
-仅有上述 BuildPPRF 还不够: 恶意 Sender 可以把某层修正值 $t^i_b$ 替换成乱数,
-让 Receiver 顺着错误的 $\mathcal{T}^{i+1}_{2y_i + \beta_i}$ 一路向下,
-最终得到一棵跟 Sender 不一致的子树, 而 Receiver 自己察觉不到.
-为此 DKLS23 (论文 Fig.14) 在 BuildPPRF 末尾追加一段 "叶子层一致性证明".
-
-记一个独立于 $\mathrm{Ha}$ 的哈希 $\mathrm{Ha}': \mathbb{B}^\lambda\rightarrow \mathbb{B}^{2\lambda}$,
-工程上仍由同一个底层 PRG 派生, 只是用不同的 domain-separation 标签.
-
-Sender 对每个叶子算一个长度 $2\lambda$ 的标签:
-$$
-\tilde s_z := \mathrm{Ha}'(\mathcal{T}^k_z), \quad z \in [q]. \tag{sz-tag}
-$$
-
-然后输出两个 $2\lambda$-比特串:
-* $\tilde t := \bigoplus_{z \in [q]} \tilde s_z$, 是对所有叶子节点的异或承诺.
-* $\tilde s := H\bigl(\tilde s_0 \,\|\, \tilde s_1 \,\|\, \cdots \,\|\, \tilde s_{q-1}\bigr)$, 是对所有叶子节点的哈希承诺.
-
-## Receiver 进行 EvalPPRF
-
-Receiver 选择 $\beta = (\beta_0, \beta_1, \dots, \beta_{k-1}) \in \mathbb{B}^k$，对应的打孔点下标为
-
-$$
-y = \sum_{i=0}^{k-1} \bar{\beta}_i \cdot 2^{k-1-i}, \tag{position}
+\begin{align*}
+\tilde s_z &:= \mathtt{PRF}(\mathtt{sid},\, \mathtt{tid},\, \mathtt{tag2},\, \mathcal{T}^k_z), \\
+z &\phantom{:}\in [0, q). 
+\end{align*}
+\tag{sz}\label{sz}
 $$
 
-活动路径为: $y_1 = \bar{\beta}_0$，$y_{i+1} = 2y_i + \bar{\beta}_i$.
-
-第 1 层: Receiver 从 base OT 0 拿到 $\rho^0_{\beta_0}$, 按定义这就是 $\mathcal{T}^1_{\beta_0}$. Receiver 拿不到兄弟节点 $\mathcal{T}^1_{\bar{\beta}_0}$. 注意看仔细, 第一处 $\mathcal{T}^1_{\beta_0}$ 没有 overbar, 第二处 $\mathcal{T}^1_{\bar{\beta}_0}$ 有.
-
-逐层扩展, $i=1\dots,k-1$:
-
-(a) 复制已知子树. 对每个 $z \in [2^i] \setminus \{y_i\}$:
-
+然后计算如下两个 $2\lambda$-比特串, 发给 Receiver. 其意义依次为: 对所有叶子节点的异或承诺, 对所有叶子节点的哈希承诺.
 $$
-\mathcal{T}^{i+1}_{2z} := \mathrm{HaL}(\mathcal{T}^i_z), \quad \mathcal{T}^{i+1}_{2z+1} := \mathrm{HaR}(\mathcal{T}^i_z). \tag{copy}
+\tilde t := \bigoplus_{z \in [0, q)} \tilde s_z.
+\tag{com-x}\label{com-x}
 $$
 
-(b) 恢复 active path 的兄弟节点. Sender 端 $t^i_{\beta_i}$ 满足如下等式. 
 $$
-t^i_{\beta_i} = \rho^i_{\beta_i} \oplus \bigoplus_{z \in [2^i]} \mathcal{T}^{i+1}_{2z + \beta_i}.
+\begin{align}
+\tilde s &:= \mathtt{Hash}\bigl(\mathtt{sid},\, \mathtt{tid},\, \mathtt{tag3},\, \\
+&\phantom{:=}\tilde s_0 \,\|\, \tilde s_1 \,\|\, \cdots \,\|\, \tilde s_{q-1}\bigr).
+\end{align}
+\tag{com-h}\label{com-h}
 $$
 
-理解上式的关键直觉是: 异或运算的加法与减法是等价的, 我们可以把异或项挪动到等式的任意一边.
+### 2.2.(3) Receiver 建树 (EvalPPRF)
 
-Receiver 已知 $t^i_{\beta_i}$, $\rho^i_{\beta_i}$, 以及求和中除 $z = y_i$ 项之外的所有项. 移项得:
+Receiver 的选择向量 $\beta = (\beta_0, \beta_1, \dots, \beta_{k-1}) \in \left\{0,1\right\}^k$ 对应一个打孔下标
+
+$$
+\hat y = \sum_{i=0}^{k-1} (1-\beta_i) \cdot 2^{k-1-i}. \tag{hole}
+$$
+
+实际上, 打孔下标是由如下递归式直接推导出来的. 下式同时还定义了 "活动路径" $\left\{y_1, \dots, y_k\right\}$.
+$$
+\begin{align*}
+y_1     &:= 1-\beta_0, \,\dots \\
+y_{i+1} &:= 2y_i+(1-\beta_i), \,\dots \\
+y_k &:= \hat y.
+\end{align*}
+\tag{path}\label{path}
+$$
+
+#### 构建第一层
+
+Receiver 通过 Base OT 实例 0 已拿到 $\rho_0^{\beta_0}$, 按定义这就是 $\mathcal{T}^1_{\beta_0}$; 拿不到兄弟节点 $\mathcal{T}^1_{1-\beta_0}$.
+
+#### 建好第 $i$ 层, 构建第 $i+1$ 层
+
+对第 $i$ 层除 $y_i$ 以外的节点编号 $z \in [0, 2^i) \setminus \{y_i\}$, 按 $\eqref{step}$ 派生两个孩子, 与 Sender 建树逻辑相同.
+
+而对编号为 $(i, y_i)$ 的节点, 只能恢复出编号为 $(i+1, 2y_i+\beta_i)$ 的子节点. 恢复方法如下式:
 $$
 \mathcal{T}^{i+1}_{2 y_i + \beta_i} = 
-t^i_{\beta_i} \oplus \rho^i_{\beta_i} 
-\oplus \bigoplus_{z \neq y_i} \mathcal{T}^{i+1}_{2z + \beta_i}
-\tag{infer}
+t_i^{\beta_i} \oplus \rho_i^{\beta_i} 
+\oplus \bigoplus_{z \neq y_i} \mathcal{T}^{i+1}_{2z + \beta_i}.
+$$
+这样恢复是因为 Sender 视角下的 $t_i^{\beta_i}$ 满足下式
+$$
+t_i^{\beta_i} = \rho_i^{\beta_i} \oplus \bigoplus_{z \in [0, 2^i)} \mathcal{T}^{i+1}_{2z + \beta_i}.
+$$
+以上递归在 $i=k-1$ 执行完毕时结束. 此时 Receiver 获得树 $G^*$, 是 Sender 视角下的树在整条活动路径打孔的版本.
+
+### 2.2.(4) Receiver 校验 (VerifyPPRF)
+
+紧接 EvalPPRF, Receiver 要校验 Sender 的 $(\tilde t, \tilde s)$ 一致. Receiver 只算得出 $z\ne \hat y$ 的标签, 详见公式 $\eqref{sz}$. 缺的那一项 $\tilde s_{\hat y}$ 可以从 $\tilde t$ 解出:
+
+$$
+\tilde s_y := \tilde t \oplus \bigoplus_{z \ne y} \tilde s_z. \tag{sy}
 $$
 
-(c) 更新 active path 指针/游标/迭代器, 即计算
-$$y_{i+1} := 2 y_i + \bar{\beta}_i. \tag{cursor}$$
-Receiver 仍不知道 $\mathcal{T}^{i+1}_{y_{(i+1)}}$. 
+补齐后, Receiver 按公式 $\eqref{com-h}$ 重算, 记 Receiver 算出的为 $\tilde s^*$. Receiver 验 $\tilde s^* \stackrel{?}{=} \tilde s$, 等式不成立则 abort. 协议至此结束.
 
-最终输出: 打孔位置 $y$, 整条 active path 都被打孔的树 $G^*$.
+## 2.3. 小结
 
-## Receiver 进行 VerifyPPRF
+### 2.3.1. 核对安全承诺
 
-紧接 EvalPPRF, Receiver 要校验 Sender 的 $(\tilde t, \tilde s)$ 一致.
+"Sender 得不到 $y$": Receiver 全程零上行消息, $y$ 只由 base OT 选择位 $\beta$ 决定. 归约到 "Base OT 藏住 $\beta_i$".
 
-Receiver 只算得出 $z\ne y$ 的标签
-$$\tilde s_z := \mathrm{Ha}'(\mathcal{T}^k_z). \tag{infer-sz}$$
+"Receiver 得不到 $\mathcal{T}^k_y$": 逐层归纳. 第 1 层缺 $\mathcal{T}^1_{\bar\beta_0}$, 归约到 "Base OT 藏住 $\rho_0^{\bar\beta_0}$"; 往后每层, (infer) 只能恢复兄弟侧, active path 上的节点始终缺失 —— 修正值 $t_i^{\bar\beta_i}$ 虽然在线上, 但它被 Receiver 拿不到的 $\rho_i^{\bar\beta_i}$ 一次一密地掩盖着. 归约到 "Base OT 藏住 $\rho_i^{\bar\beta_i}$" 与 $\mathtt{PRF}$ 的安全性.
 
-缺的那一项 $\tilde s_y$ 可以从 $\tilde t$ 解出:
-$$
-\tilde s_y := \tilde t \oplus \bigoplus_{z \ne y} \tilde s_z. \tag{infer-sy}
-$$
-
-补齐后, Receiver 重算
-$$
-\tilde s^* := H\bigl(\tilde s_0 \,\|\, \tilde s_1 \,\|\, \cdots \,\|\, \tilde s_{q-1}\bigr).
-\tag{infer-s}
-$$
-并验 $\tilde s^* \stackrel{?}{=} \tilde s$. 不等则中止.
-
-这套 Proof/Verify 策略的精神在于:
+"一致性" 这套证明-验证策略的精神在于:
 Sender 不知道 Receiver 要给哪个叶子打孔.
-对每棵树, Sender 猜中的概率仅有 $1/q$; 但 Sender 必须猜中所有 $\kappa/K$ 棵树才能骗过 Receiver.
+对每棵树, Sender 猜中的概率仅有 $1/q$; 但 Sender 必须猜中所有 $\kappa/K$ 棵树 (见 `05-softspoken.md` 的参数) 才能骗过 Receiver.
 Receiver 在任何一棵树上验不过, 都会「有内鬼, 终止交易」.
 如此, Sender 骗过 Receiver 的概率很渺茫.
 
-## 通信成本
+### 2.3.2. 点评通信成本
 
-- base OT：$k$ 个 $\binom{2}{1}$-OT
-- Sender → Receiver 的修正值：$2(k-1)$ 个 $\lambda$ 比特串
-- ProvePPRF 输出: $\tilde t, \tilde s$ 两个 $2\lambda$ 比特串, 共 $4\lambda$
-- 总扩展通信约 $2(k-1)\lambda + 4\lambda = 2(k+1)\lambda$ 比特，得到 $q = 2^k$ 大小的 PPRF
+* Base OT: $k$ 个 $\binom{2}{1}$-OT.
+* Sender → Receiver 的修正值: $2(k-1)$ 个 $\lambda$ 比特串.
+* ProvePPRF 输出: $\tilde t, \tilde s$ 两个 $2\lambda$ 比特串, 共 $4\lambda$.
+* 总扩展通信约 $2(k-1)\lambda + 4\lambda = 2(k+1)\lambda$ 比特, 得到 $q = 2^k$ 大小的 PPRF.
 
