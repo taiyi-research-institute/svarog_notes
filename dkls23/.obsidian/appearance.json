@@ -1,5 +1,7 @@
 {
   "monospaceFontFamily": "等距更纱黑体 SC",
-  "cssTheme": "GitHub Theme",
-  "theme": "obsidian"
+  "cssTheme": "",
+  "theme": "obsidian",
+  "textFontFamily": "Source Han Serif",
+  "baseFontSize": 18
 }

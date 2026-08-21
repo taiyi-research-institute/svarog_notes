@@ -1,5 +1,3 @@
-# 
-
 参考: Masny-Rindal, "Endemic Oblivious Transfer", Fig. 8, https://eprint.iacr.org/2019/706.pdf.
 
 Endemic OT 本质上是安全定义更弱的 Base OT. 虽然安全定义更弱, 但证明更完备. 而 [[00-mta-baseot]] 中的 OT 难以构造证明.

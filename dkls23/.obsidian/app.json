@@ -1,4 +1,5 @@
 {
   "readableLineLength": true,
-  "showLineNumber": true
+  "showLineNumber": true,
+  "strictLineBreaks": true
 }
