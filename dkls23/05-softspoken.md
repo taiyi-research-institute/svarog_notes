@@ -1,12 +1,12 @@
-[[04-pprf]] 把 $k$ 个二选一 Base OT 合成一棵 $q=2^k$ 叶的打孔树. 本篇是 [[01-iknp03]] 末节 "半诚实的边界" 第 (3) 条路线的正主: SoftSpokenOT 用 $\kappa/k$ 棵打孔树顶替 IKNP 的 $\kappa$ 行种子, 把校正矩阵 $u$ 的行数从 $\kappa$ 压到 $\kappa/k$, 拿计算量换带宽. 一致性检查沿用 [[02-kos15]] 的骨架: 承诺-挑战-响应, 再用 Fiat-Shamir 变换压成单条消息. 产出的随机 OT 密钥由 [[06-rvole]] 兑换成 MtA.
+[[04-pprf]] 把 $k$ 个二选一 Base OT 合成一棵 $q=2^k$ 叶的打孔树. 本篇是 [[01-iknp03]] 末节 "半诚实的边界" 第 (3) 条路线的正主: SoftSpokenOT 用 $\kappa/k$ 棵打孔树顶替 IKNP 的 $\kappa$ 行种子, 把半密钥 $u$ 的行数从 $\kappa$ 压到 $\kappa/k$, 拿计算量换带宽. 一致性检查沿用 [[02-kos15]] 的骨架: 承诺-挑战-响应, 再用 Fiat-Shamir 变换压成单条消息. 产出的随机 OT 密钥由 [[06-rvole]] 兑换成 MtA.
 
-参考: Roy, "SoftSpokenOT", CRYPTO 2022, https://eprint.iacr.org/2022/192. 本篇参数取 DKLs23 的实例化.
+参考: Roy, "SoftSpokenOT", CRYPTO 2022, https://eprint.iacr.org/2022/192. 本篇参数取 DKLs23 中的设置.
 
-# 0. 接口规格串讲
+# 1. 接口规格串讲
 
 SoftSpokenOT 协议是由 Base Endemic OT, PPRF, Extended OT 三个子协议依次串联而成的. 本章梳理三个子协议的输入、输出和参数. 同时标明子协议属于 ECDSA 的 Keygen 还是 Sign, 这意味着输出是否持久存储.
 
-## 0.1. Base OT 的接口规格
+## 1.1. Base OT 的接口规格
 
 ECDSA Keygen 阶段跑 $\kappa = 256$ 个 Base Endemic OT 实例 ([[03-endemic-ot]]). 对每个实例 $i\in [0, \kappa)$:
 
@@ -15,9 +15,9 @@ ECDSA Keygen 阶段跑 $\kappa = 256$ 个 Base Endemic OT 实例 ([[03-endemic-o
 
 ⚠️ 正文将把 $\rho$ 重载为 Extended OT 的输出密钥 (与下游 [[06-rvole]] 对齐). 类似地, 正文将把 $\beta$ 重载为 Extended OT 的选项.
 
-## 0.2. PPRF 的接口规格
+## 1.2. PPRF 的接口规格
 
-TODO: 发生在什么阶段?
+发生于 ECDSA Keygen 阶段, 紧跟 Base OT: 建好的树随 keyshare 持久落库, 供日后每次 Sign 反复取用.
 
 每 $k = 4$ 个 Base (Endemic) OT 实例喂给 [[04-pprf]] 合成一棵 GGM 树, 共 $\kappa/k = 64$ 棵. 对于树编号 $i \in [0, \kappa/k)$:
 
@@ -25,13 +25,13 @@ TODO: 发生在什么阶段?
 * PPRF Sender 持全部 $q$ 片叶子.
 * PPRF Receiver 持 $q-1$ 片叶子, 缺打孔叶子 $\mathcal{T}_{i,\delta_i}$. 打孔下标 $\delta_i \in [0, q)$ 即 [[04-pprf]] 的 $\hat y$, 由他的 Base OT 选择位决定, 只有他知道.
 
-## 0.3. Extended OT 的接口规格
+## 1.3. Extended OT 的接口规格
 
 发生于 ECDSA Sign 阶段.
 
 输入:
 
-* SoftSpoken Receiver 持有 $\kappa/k$ 棵完整树 $\left\{\mathcal{T}_{i,x}\right\}$, $i\in k/\kappa$. 以及随机选项串 $\beta \in \left\{0,1\right\}^L$.
+* SoftSpoken Receiver 持有 $\kappa/k$ 棵完整树 $\left\{\mathcal{T}_{i,x}\right\}$, $i\in [0, \kappa/k)$. 以及随机选项串 $\beta \in \left\{0,1\right\}^L$.
 * SoftSpoken Sender 持有 $\kappa/k$ 棵打孔树. 具体来说, 持有非打孔节点值以及打孔下标.
 
 输出:
@@ -41,7 +41,7 @@ TODO: 发生在什么阶段?
 
 Extended OT 是随机 OT: 两侧协商出随机密钥串, 真正的 payload 传输推迟到 [[06-rvole]] 完成.
 
-## 0.4. 参数表
+## 1.4. 参数表
 
 |      参数      | 意义                                   | DKLs23 取值 |
 | :----------: | ------------------------------------ | :-------: |
@@ -50,7 +50,7 @@ Extended OT 是随机 OT: 两侧协商出随机密钥串, 真正的 payload 传�
 |     $k$      | 树深 = 每棵树吃掉的 Base OT 数                |     4     |
 |  $q = 2^k$   | 每棵树的叶子数                              |    16     |
 |     $L$      | 真实 OT 实例数                            |    512    |
-|     $S$      | 陪跑段长度, 也是域 $\mathbb{F}_{2^S}$ 的位宽    |    128    |
+|     $S$      | 陪跑段长度, 也是域 $\mathbb{GF}(2^S)$ 的位宽    |    128    |
 | $L' = L + S$ | 扩展列数                                 |    640    |
 |  $M = L/S$   | 挑战向量长度                               |     4     |
 
@@ -58,13 +58,13 @@ Extended OT 是随机 OT: 两侧协商出随机密钥串, 真正的 payload 传�
 
 ## 2.1. 规格
 
-输入输出: 详见 [[#0.3. SoftSpoken OT]].
+输入输出: 详见 [[#1.3. Extended OT 的接口规格]].
 
 安全承诺:
 
 * Sender 不知道 $\beta$.
 * Receiver 不知道另一侧密钥 $\rho^{1-\beta_j}_j$.
-* 一致性: Receiver 必须在所有行 (row) 使用同一个选项串, 掺假会被 2.2.(6) 抓住.
+* 一致性: Receiver 必须在所有行 (row) 使用同一个选项串, 掺假会被 1.2.(5) 抓住.
 
 安全假设:
 
@@ -76,7 +76,7 @@ Extended OT 是随机 OT: 两侧协商出随机密钥串, 真正的 payload 传�
 
 ## 2.2. 实施
 
-### 2.2.(1) Receiver 产生半密钥和 "全密钥原像"
+### 2.2.(1) Receiver 产生半密钥, 以及全密钥原像
 
 Receiver 对第 $i, i \in [0, \kappa/k)$ 棵 PPRF 树:
 
@@ -102,8 +102,6 @@ $$
 $$
 v_{i',*} := \sum_{x \in [0, q)} \mathrm{bit}_b(x)\cdot r_{i,x}. \tag{vmat}
 $$
-
-SoftSpoken OT 省带宽就在于 $u$ 只有 $\kappa/k$ 行. 相比之下, IKNP/KOS 的 $u$ 有 $\kappa$ 行. TODO: 此句挪到 sec2.3.2
 
 ### 2.2.(2) 双方各自算 Fiat-Shamir 挑战
 $$
@@ -134,17 +132,17 @@ Receiver 把 $u,\tau,\tilde\beta$ 发给 Sender. SoftSpoken 子协议中仅此�
 
 ### 2.2.(4) Sender 计算全密钥原像
 
-Sender 首先需计算密钥原像 $w\in\left\{0,1\right\}^{\kappa\times L'}$. 对行 $i' = i\cdot k + b$, Sender 用手里的 $q-1$ 片叶子和收到的 $u_i$ 计算
+Sender 首先需计算密钥原像 $w\in\left\{0,1\right\}^{\kappa\times L'}$. 对行 $i' = i\cdot k + b$, Sender 用手里的 $q-1$ 片叶子和收到的 $u_{i,*}$ 计算
 $$
 w_{i',*} := \left\{
     \sum_{x \in [0, q)}
     \mathrm{bit}_b(\delta_i\oplus x)\cdot r_{i,x}
 \right\} 
 ~\oplus~
-\mathrm{bit}_b(\delta_i) \cdot u_i.
+\mathrm{bit}_b(\delta_i) \cdot u_{i,*}.
 \tag{wmat}
 $$
-式中获取 $r_{i,x}$ 的方式与 Receiver $\eqref{leaf}$ 相同. 式中虽然无法获取 $r_{i,\delta_i}$, 但其系数 $\mathrm{bit}_b(\delta_i \oplus \delta_i) = 0$, 因而 Sender 能够计算上式.
+式中获取 $r_{i,x}$ 的方式与 Receiver (leaf) 相同. 式中虽然无法获取 $r_{i,\delta_i}$, 但其系数 $\mathrm{bit}_b(\delta_i \oplus \delta_i) = 0$, 因而 Sender 能够计算上式.
 
 引理: 对每行 $i'$, Sender 全密钥原像 $w$ 与 Receiver 全密钥原像 $v$ 满足如下关系
 $$
@@ -154,7 +152,7 @@ $$
 
 证明: 讨论 $\mathrm{bit}_b(\delta_i)$ 的两种取值.
 
-取 0 时 $\mathrm{bit}_b(\delta_i \oplus x) = \mathrm{bit}_b(x)$, $\eqref{wmat}$ 花括号项即为 $v$, 另一项为 0.
+取 0 时 $\mathrm{bit}_b(\delta_i \oplus x) = \mathrm{bit}_b(x)$, (wmat) 花括号项即为 $v$, 另一项为 0.
 
 取 1 时 $\mathrm{bit}_b(\delta_i \oplus x) = 1 \oplus \mathrm{bit}_b(x)$. 进而, 花括号收集 $\mathrm{bit}_b(x)=0$ 的叶子; 另一项收集全部叶子, 同时引入异或项 $\mathrm{bit}_b(\delta_i)\cdot\hat\beta$. 进而, 等式左边 $\mathrm{bit}_b(x)=0$ 的叶子成对消去, 留下 $\mathrm{bit}_b(x)=1$ 的叶子 (即 $v_{i',*}$) 与 $\hat\beta$.    $\blacksquare$
 
@@ -176,7 +174,7 @@ $$
 
 ### 2.2.(5) Sender 验证挑战
 
-把每行 $w_{i',*}$ 照 2.2.(4) 的刀法切段, 得 $\hat w_{i',j}$ 与 $w^\mathrm{ext}_{i'}$, 然后逐行验证
+把每行 $w_{i',*}$ 照 1.2.(3) 的刀法切段, 得 $\hat w_{i',j}$ 与 $w^\mathrm{ext}_{i'}$, 然后逐行验证
 $$
 \left\{
     \sum_{j\in[0,M)} \chi_j\cdot\hat w_{i',j}
@@ -192,9 +190,9 @@ $$
 
 掺假必抓 (概率意义): Receiver 若在不同的行使用不同的选项串, 通过的概率与 [[02-kos15#B. 详细论证 Sender (verify)]] 原理类似. 检查的可靠性由 Schwartz-Zippel 引理与 $S = 128$ 比特的域尺寸兜底, 不再赘述.
 
-### 2.2.(6) 两侧派生密钥
+### 2.2.(6) 两方派生密钥
 
-忽略陪跑列, 对列号 $j \in [0, L)$:
+忽略陪跑列, 对列号 (实例编号) $j \in [0, L)$:
 
 Receiver 计算
 $$
@@ -216,11 +214,11 @@ $$
 
 两式的衔接由 (wv-eq) 的逐列形式保证: $v_{*,j} = w_{*,j} \oplus \beta_j\cdot\Delta$, 所以 Receiver 的哈希入参恰是 Sender 两个原像中 $\beta_j$ 一侧的那个.
 
-Hash 这一下不能省: 它把 "两个原像差一个公差" 升格为 "两把密钥各自独立" ([[01-iknp03]] §2.3.2 原则二), 并掺入域分离参数 $(\mathtt{sid}, \mathtt{tag5}, j)$. 若不 Hash, 泄露任何一对密钥就等于泄露 $\Delta$, 全线实例连坐.
+Hash 这一下不能省: 它把 "两个原像差一个公差" 升格为 "两把密钥各自独立" ([[01-iknp03#2.3.2. 与 00-mta-baseot 对比思路]]), 并掺入域分离参数 $(\mathtt{sid}, \mathtt{tag5}, j)$. 若不 Hash, 泄露任何一对密钥就等于泄露 $\Delta$.
 
-## 2.3. 小结
+# 3. 总结
 
-### 2.3.1. 核对安全承诺
+### 3.1. 核对安全承诺
 
 **"Sender 不知道 $\beta$".** (umat) 的掩码 $\sum_x r_{i,x}$ 含打孔叶的扩张 $r_{i,\delta_i}$, Sender 不知道它, 掩码对他均匀 —— 一次一密. 归约链: 窥 $\hat\beta$ $\to$ 求 $r_{i,\delta_i}$ $\to$ 得打孔叶 $\mathcal{T}_{i,\delta_i}$, 破 [[04-pprf]] 的承诺 "打孔叶学不到", 或破 $\mathtt{PRG}$. 新增消息 $\tau, \tilde\beta$ 各被一段新鲜陪跑 ($v^\mathrm{ext}$/$\beta^\mathrm{ext}$) 一次一密掩护, 对应 [[02-kos15]] §2.3.2 机制一的修补; 挑战被 Fiat-Shamir 钉死, Sender 没有定向挑 $\chi$ 的机会, 对应机制二的修补.
 
@@ -228,18 +226,20 @@ Hash 这一下不能省: 它把 "两个原像差一个公差" 升格为 "两把�
 
 **"一致性".** 诚实双方由 (wv-eq) 自动对齐. Receiver 掺假由 (verify) 抓; Sender 在本协议零下行消息, 没有作恶的载体 —— 他的 selective failure 藏在下游拿密钥加密的时刻, 见 [[06-rvole]].
 
-### 2.3.2. 点评通信成本
+### 3.2. 盘点通信和计算成本
 
-我们似乎把二选一 OT 转成 $2^k$ 选一, 又转回实例数更多的二选一. 中间那层 PPRF 有何收益? 收益是签名时的带宽. 唯一一条消息的账单:
+唯一一条消息 $(u, \tau, \tilde\beta)$ 之中, $u$ 的带宽受益于 PPRF, 其带宽与行数成正比, 因而与 $1/k$ 成正比.
 
-* $u$: $\kappa/k \times L' = 40960$ bit $= 5120$ Byte.
-* $\tau$: $\kappa \times S = 32768$ bit $= 4096$ Byte.
-* $\tilde\beta$: $S = 128$ bit $= 16$ Byte.
+而在计算量方面, SoftSpoken 比 KOS 多出来的是叶子扩张 (leaf), 可以量化为 PRG 调用次数: Receiver 全叶扩张, 共 $2^k \cdot (\kappa/k)$ 次; Sender 缺打孔叶, 共 $(2^k - 1) \cdot (\kappa/k)$ 次. 代入 $k=1$ 恰好退化为 KOS 的账: Receiver 每行扩两侧种子, Sender 每行扩单侧.
 
-对照退化情形 ($k=1$, 即 KOS): $u$ 有 $\kappa$ 行, 合 20480 Byte. PPRF 把 $u$ 压缩了 $k=4$ 倍, 兑现 [[01-iknp03]] 末节 "行数从 $\kappa$ 降到 $\kappa/k$" 的预告. $N$ 方签名时每个有序对互发一份, 共 $(N-1)N$ 份, 收益随之放大.
+把通信和计算的倍率一起拉个表如下, 计算列取 Sender 口径 $(2^k-1)/k$ 的近似值 $2^k/k$, Receiver 口径约为其一半. 注意 $\kappa/k$ 这个算式决定了 $k$ 需整除 $\kappa$, 因而 $k$ 有意义的取值只有 2 的幂.
 
-代价是计算量: (umat)/(vmat)/(wmat) 每行都要吃满 $q = 2^k$ 片叶子的 $\mathtt{PRG}$ 扩张, 对称计算量约为 KOS 的 $q/k = 4$ 倍 —— 拿计算量换带宽.
+|       | 带宽      | 计算       |
+| ----- | ------- | -------- |
+| 标的    | $u$ 的行数 | PRG 调用次数 |
+| $k=1$ | 基准      | 基准       |
+| $k=2$ | 1/2     | 2        |
+| $k=4$ | 1/4     | 4        |
+| $k=8$ | 1/8     | 32       |
 
-### 2.3.3. 指出持久化数据
-
-本协议不新增持久化数据: 输入的树是 keygen 阶段落库的 ([[04-pprf]]), 输出密钥当场被 [[06-rvole]] 消费, 用完即弃. 跨会话安全靠 (leaf) 与 (receiver-key)/(sender-key) 里的 $\mathtt{sid}$ 保证.
+DKLs23 的实践表明, $k=4$ 是一个甜点参数, 带宽收益和计算代价达到完美平衡.

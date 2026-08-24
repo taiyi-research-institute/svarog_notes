@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "05-softspoken.md",
+                "file": "06-rvole.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "05-softspoken"
+              "title": "06-rvole"
             }
           }
         ]
@@ -161,7 +161,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "05-softspoken.md",
+                "file": "06-rvole.md",
                 "followCursor": true,
                 "showSearch": false,
                 "searchQuery": ""
@@ -190,14 +190,29 @@
   },
   "active": "86780a9dd65047d4",
   "lastOpenFiles": [
-    "02-kos15.md",
     "05-softspoken.md",
+    "02-kos15.md",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/tests/common/mod.rs",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/tests/vrf.rs",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/tests/tests.ts",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/tests/hard_derive.ts",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/tests/hard_derive.rs",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/tests/common",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/src/vrf_session.rs",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/src/vrf_keyshare.rs",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/src/vrf_keygen.rs",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/src/utils.rs",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/README.md",
+    "silent-shard-dkls23-ll/wrapper/wasm-ll/LICENSE.md",
+    "silent-shard-dkls23-ll/README.md",
+    "silent-shard-dkls23-ll/LICENSE.md",
+    "silent-shard-dkls23-ll/CHANGELOG.md",
     "07-orchestration.md",
+    "未命名.md",
     "06-rvole.md",
     "01-iknp03.md",
     "04-pprf.md",
     "03-endemic-ot.md",
-    "dkls23.md",
-    "dkls23.pdf"
+    "dkls23.md"
   ]
 }
