@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "7ce93ccd55533f01",
+        "id": "52ae74ba84dade73",
         "type": "tabs",
         "children": [
           {
-            "id": "4a359068f832deb0",
+            "id": "5630cd018c6ed74f",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -162,7 +162,7 @@
               "type": "outline",
               "state": {
                 "file": "06-rvole.md",
-                "followCursor": true,
+                "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
@@ -188,11 +188,12 @@
       "bases:新建数据库": false
     }
   },
-  "active": "4a359068f832deb0",
+  "active": "8dbad0dea0b42ca7",
   "lastOpenFiles": [
+    "05-softspoken.md",
+    "07-orchestration.md",
     "06-rvole.md",
     "04-pprf.md",
-    "05-softspoken.md",
     "02-kos15.md",
     "silent-shard-dkls23-ll/wrapper/wasm-ll/tests/common/mod.rs",
     "silent-shard-dkls23-ll/wrapper/wasm-ll/tests/vrf.rs",
@@ -209,7 +210,6 @@
     "silent-shard-dkls23-ll/README.md",
     "silent-shard-dkls23-ll/LICENSE.md",
     "silent-shard-dkls23-ll/CHANGELOG.md",
-    "07-orchestration.md",
     "未命名.md",
     "01-iknp03.md",
     "03-endemic-ot.md",
