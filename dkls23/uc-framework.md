@@ -1,3 +1,7 @@
+---
+title: "UC 框架"
+---
+
 # UC 框架笔记
 
 ## 0. 导读
@@ -5,8 +9,10 @@
 读 DKLS23 第 4 节，会撞上这样一行：
 
 $$
+
 \forall \mathcal{A}\ \exists \mathcal{S}\ \forall \mathcal{Z}:\quad
 \mathsf{EXEC}_{\pi,\mathcal{A},\mathcal{Z}} \;\approx\; \mathsf{EXEC}_{\mathcal{F},\mathcal{S},\mathcal{Z}}.
+
 $$
 
 上式的每个符号都有明确的意义和目的。理解这些符号需要很多形而上的辩经工作。这份笔记的目的就是：尽量以人脑友好的方式，把思维过程记录下来，从而准确、连贯、协调地理解上式。达成这个目标以后，往雅了说，能够提高对 “安全” 的理解；往俗了说，能够让论文不必尬聊创新点就能扩篇幅。
@@ -120,7 +126,9 @@ $\mathcal{Z}$ 全程的所见所闻（称为它的 **view**）是一大坨数据
 **定义 3.3（统计距离）**　两个分布 $X, Y$ 的统计距离为
 
 $$
+
 \Delta(X,Y) \;=\; \max_T \bigl|\, \Pr[X\in T] - \Pr[Y\in T] \,\bigr|,
+
 $$
 
 其中 $T$ 遍历所有事件集合。每个 $T$ 对应一个一比特判决（“样本落在 $T$ 里吗？”），所以这个定义本身就在说：**一比特检验能达到的天花板，恰好是统计距离**。
@@ -140,9 +148,12 @@ $$
 ### 正式定义与量词顺序
 
 **定义 3.7（EXEC 与 UC 安全）**　记 $\mathsf{EXEC}_{\pi,\mathcal{A},\mathcal{Z}}$ 为真实世界中 $\mathcal{Z}$ 输出的那一比特的分布，按安全参数索引成分布簇；$\mathsf{EXEC}_{\mathcal{F},\mathcal{S},\mathcal{Z}}$ 同理。称 $\pi$ **UC-实现** $\mathcal{F}$，当且仅当
+
 $$
+
 \forall \mathcal{A}\ \exists \mathcal{S}\ \forall \mathcal{Z}:\quad
 \mathsf{EXEC}_{\pi,\mathcal{A},\mathcal{Z}} \;\approx\; \mathsf{EXEC}_{\mathcal{F},\mathcal{S},\mathcal{Z}},
+
 $$
 
 其中 $\approx$ 指距离可忽略（统计或计算，视安全目标而定）。草案 A–D 至此全部废止。
@@ -202,8 +213,11 @@ $\mathcal{A}$ 既然带有任意性，何苦另设 $\mathcal{Z}$？直接让 $\m
 **例 4.2（可检验与否）**　“敌手交出的 $\mathtt{sk}'$ 满足 $\mathtt{sk}' \cdot G \stackrel{?}{=} \mathtt{pk}$” 是可检验的：检验程序 $V$ 拿敌手信道上的 $\mathtt{sk}'$ 与诚实方输出带上的 $\mathtt{pk}$，做一次点乘即可。“敌手心里知道了点什么” 不可检验：没有程序能读取 “心里”。定义 4.1 的边界就划在这里——搬运定理只搬运**可观测**的安全性。
 
 **定理 4.3（安全搬运）**　设 $\pi$ UC-实现 $\mathcal{F}$（定义 3.7），区分优势至多 $\varepsilon$；对给定的真实敌手 $\mathcal{A}$，记 $\mathcal{S}$ 为定义 3.7 配给它的模拟器。则对任何可检验的坏事 $B$，
+
 $$
+
 \Pr[B \mid \text{real}] \;\le\; \Pr[B \mid \text{ideal}] + \varepsilon,
+
 $$
 
 其中左端在真实世界 $(\pi, \mathcal{A})$ 中度量，右端第一项在敌手席坐着 $\mathcal{S}$ 的理想世界中度量。
@@ -215,9 +229,11 @@ $$
 （b）**两条按构造成立的恒等式**：$\mathcal{Z}^*$ 在两个世界跑同一份代码，$V$ 读到的永远是**当前世界**产出的数据。所以 “$\mathcal{Z}^*$ 输出 1” 在真实世界里就是 “$B$ 在真实世界发生”，在理想世界里就是 “$B$ 在理想世界发生”：
 
 $$
+
 \Pr[\mathcal{Z}^*\to 1 \mid \text{real}] = \Pr[B \mid \text{real}],
 \qquad
 \Pr[\mathcal{Z}^*\to 1 \mid \text{ideal}] = \Pr[B \mid \text{ideal}].
+
 $$
 
 这里没有 “把 $B$ 换成某个特例” 的动作——是同一个检验程序 $V$，被同一台 $\mathcal{Z}^*$ 在两个世界里各跑一遍。
@@ -225,7 +241,9 @@ $$
 再看杠杆所在的中间一步。“$\pi$ UC-实现 $\mathcal{F}$” 不是援引哪条定理，而是本定理的**前提**（在 DKLS23 的语境里，这个前提由论文的 Thm 4.1 兑现）。按定义 3.7，它是一个全称命题：对**所有**环境，两个世界的输出分布相差至多 $\varepsilon$。全称命题可以在任何特例上实例化——这不是技巧，这就是 $\forall$ 的用途。实例化在特例 $\mathcal{Z}^*$ 上，单边展开绝对值：
 
 $$
+
 \Pr[\mathcal{Z}^*\to 1 \mid \text{real}] \;\le\; \Pr[\mathcal{Z}^*\to 1 \mid \text{ideal}] + \varepsilon.
+
 $$
 
 与（b）的两条恒等式串联即得结论。顺带注意量词顺序（注 3.8）在此的回报：$\mathcal{S}$ 在 $\forall \mathcal{Z}$ 之前就已固定，我们**后造**的 $\mathcal{Z}^*$ 完全可以针对这个 $\mathcal{S}$ 定制刁难，而前提保证 $\mathcal{S}$ 仍须扛住——是 $\mathcal{Z}^*$ 针对 $\mathcal{S}$，不是 $\mathcal{S}$ 针对 $\mathcal{Z}^*$。$\blacksquare$
@@ -310,11 +328,13 @@ UC 证明不是 “协议固若金汤” 的证书，而是把 “协议安全�
 定量版一行写尽（定理 4.3 的抽象形式）：
 
 $$
+
 \Pr[\text{坏事} \mid \text{real}]
 \;\le\;
 \underbrace{\Pr[\text{坏事} \mid \text{ideal}]}_{\text{假设管辖}}
 \;+\;
 \underbrace{\varepsilon}_{\text{hybrid 管辖}}
+
 $$
 
 ## 附录：已澄清的误区清单

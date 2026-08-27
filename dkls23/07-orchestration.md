@@ -1,11 +1,18 @@
+---
+title: "协议编排"
+---
+
 协议参数
 
 * 总参与方 $n$, 阈值 $t$, 签名参与方 $|S| \ge t$.
 * 本文 Lagrange 插值直接用参与方编号 $i$ 作为求值点 (视作 $\mathbb{Z}_n^*$ 元素), 不另立坐标记号.
 * `sid` 是协议外部输入, 全员事先约定, 协议内部不再协商.
 * 子协议 sid 从 `sid` 和参与方编号派生而来. 例如 base OT 实例 $(i,j)$ 用
+
 $$
+
 \mathrm{Hash}(\mathtt{sid}, i, j, \texttt{"base\_ot"}). \tag{subsid-example}
+
 $$
 
 # Keygen — 4 轮
@@ -21,8 +28,11 @@ $$
 (2) 算 Feldman 向量 $\mathbf{F}_i := (c_{i,0} \cdot G, \cdots, c_{i,t-1}\cdot G)$.
 
 (3) 摇盲化 $\varepsilon_{1,i} \in \mathbb{B}^{256}$, 计算第一次 hash 承诺
+
 $$
+
 \mathrm{Com}_{1,i} := \mathrm{Hash}(\mathrm{sid}, i, \mathbf{F}_i, \varepsilon_{1,i}).
+
 $$
 
 (exchange) 广播 $\mathrm{Com}_{1,i}$.
@@ -81,8 +91,11 @@ $$
 (7) 执行 EvalPPRF, 用上述密钥配合 $j$ 发来的 $\tilde t_{\ell,i,j}, \tilde s_{\ell,i,j}$, 算"打孔后的全员叶子". 此即 sign 阶段 SoftSpoken Sender 一侧的种子 ($i$ 持 $\Delta$ 部分).
 
 (8) 聚合本方份额
+
 $$
+
 x_i := \sum_{j\in [n]} d_{j,i} = P(i).
+
 $$
 
 ## Round 4. 公开最终份额.
@@ -97,11 +110,14 @@ $$
 * 检验所有 $\pi_j$.
 * 检验所有 $Y$ 一致.
 * Lagrange 重构验公钥:  
+
 $$
+
 \begin{align*}
 \lambda(j,S) &:= \prod_{k\in S\setminus\{j\}} \frac{-k}{j - k}, \tag{coef}\\
 Y &\phantom{:}\stackrel{?}{=} \sum_{j\in S}\lambda(j,S) \cdot S_j.
 \end{align*}
+
 $$
 
 ## Keyshare 输出
@@ -138,9 +154,13 @@ ECDSA 签名公式回顾:
 * 承诺 $R_i := r_i \cdot G$.
 
 (2) 计算衍生分片:
+
 $$
+
 x'_i := \lambda(i,S)\cdot x_i + \zeta_i + \nabla x \cdot |S|^{-1}.
+
 $$
+
 三项分别是:
 1. 拉格朗日插值后的私钥分片,
 2. 前一项是恒定的, 多次签名后泄露风险上升, 为此我们给它施加随机掩码. 我们采用 "rerand" 技巧使各方掩码之和为 0, 详见 `misc-rerand.md`.
@@ -149,15 +169,21 @@ $$
 (3) 算本方公钥分片 $Y_i := x'_i \cdot G$. 算派生公钥 $Y' := Y + \nabla x \cdot G$.
 
 (4) 摇盲化 $\varepsilon_{R,i} \in \mathbb{B}^{256}$, 算 $R_i$ 承诺
+
 $$
+
 \mathrm{Com}_{R,i} := \mathrm{Hash}(\mathrm{sid}, i, R_i, \varepsilon_{R,i}).
+
 $$
 
 (exchange) 广播 $\mathrm{Com}_{R,i}$.
 
 (5) 计算全员 transcript hash $d$, 将在 Round 3 维护各方的一致性.
+
 $$
+
 d := \mathrm{Hash}(\mathrm{sid}, Y', \mathrm{Com}_{R,1}, \cdots, \mathrm{Com}_{R,|S|}).
+
 $$
 
 ## Round 2. SoftSpoken Receiver 和 RVOLE Sender
@@ -176,12 +202,16 @@ $$
 * 算 $L$ 个 SoftSpoken OT 密钥对 $\rho^0_{\ell,i,j}, \rho^1_{\ell,i,j}$ ($\ell\in[L]$).
 * 算修正矩阵 $\tilde a_{i,j}$, 响应 $\eta_{i,j}$, 哈希校验 $\mu_{i,j}$.
 * 算 Sender 自留分片 $y^\mathtt{r}_{i,j}, y^\mathtt{x}_{i,j}$, 满足如下一组 MtA 关系. 注意 $\beta_{i,j}$ 是参与方 $j$ 作为 Receiver 私有的.
+
 $$
+
 \begin{align*}
 y^\mathtt{r}_{i,j} + z^\mathtt{r}_{i,j} &= r_i \cdot \beta_{i,j}, \\
 y^\mathtt{x}_{i,j} + z^\mathtt{x}_{i,j} &= x'_i \cdot \beta_{i,j}. 
 \end{align*}
+
 $$
+
 这里 $z^\mathtt{r}_{i,j}, z^\mathtt{x}_{i,j}$ 是 Receiver 自留分片, 此时还没出现, 我们将在 Round 3 算出来.
 
 (4) 算 $\Gamma$ 一致性点 $\Gamma^\mathtt{r}_{i,j} := y^\mathtt{r}_{i,j} \cdot G$, $\Gamma^\mathtt{x}_{i,j} := y^\mathtt{x}_{i,j} \cdot G$. 这两项用于约束
@@ -207,41 +237,58 @@ $$
 (2) 调用 RVOLE Receiver 端: 消费 $j$ 发来的 $\tilde a_{j,i}, \eta_{j,i}, \mu_{j,i}$, 得本方 Receiver 分片 $z^\mathtt{r}_{j,i}, z^\mathtt{x}_{j,i}$.
 
 (3) 验 $\Gamma$ 一致性. 对每个 $j\ne i$:
+
 $$
+
 \beta_{j,i} \cdot R_j \stackrel{?}{=} \Gamma^\mathtt{r}_{j,i} + z^\mathtt{r}_{j,i} \cdot G, \quad
 \beta_{j,i} \cdot Y_j \stackrel{?}{=} \Gamma^\mathtt{x}_{j,i} + z^\mathtt{x}_{j,i} \cdot G.
+
 $$
+
 RVOLE 协议本身不保证输入的乘法分片是下游协议所需的. 这就需要靠 $\Gamma$ 把 RVOLE 的输入 $r_j, x'_j$ 跟此前广播的 $R_j, Y_j$ 绑住.
 
 (4) 聚合.
 * 此时形成 ECDSA 签名的第一字段, 即
+
 $$
+
 \begin{align*}
 R &:= R_i + \sum_{j\ne i} R_j, \\
 r &:= R.\mathrm{x} \bmod n.
 \end{align*}
+
 $$
 
 * 验派生公钥是否一致, 即 $\sum_{j\in S}Y_j \stackrel{?}{=} Y'$.
 * 聚合
+
 $$
+
 \begin{align*}
 \Phi_i &:= \phi_i + \sum_{j\ne i}\psi_{j\rightarrow i}, \\
    V^\mathtt{r}_i &:= \sum_{j\ne i}(y^\mathtt{r}_{i,j} + z^\mathtt{r}_{j,i}), \\
    V^\mathtt{x}_i &:= \sum_{j\ne i}(y^\mathtt{x}_{i,j} + z^\mathtt{x}_{j,i}). \\
 \end{align*}
+
 $$
+
 * 算 PreSignature 的两个分量. $s_{1,i}$ 是最终值, $s_{0,i}^\circ$ 是 $m$-未绑的部分.
+
 $$
+
 s_{1,i} := r_i \cdot \Phi_i + V^\mathtt{r}_i, \quad
 s_{0,i}^\circ := r_x \cdot (x'_i \cdot \Phi_i + V^\mathtt{x}_i).
+
 $$
 
 ## Pre-sign 输出
 
 每方 $i$ 持有
+
 $$
+
 \mathrm{PreSignature}_i := \bigl(r,\, s_{1,i},\, s_{0,i}^\circ,\, \phi_i\bigr).
+
 $$
 
 其中
@@ -271,9 +318,13 @@ $$
 (exchange) 广播 $(s_{0,i}, s_{1,i})$.
 
 (2) 收齐所有 $j$ 的部分签名后, 算
+
 $$
+
 s := \frac{\sum_{j\in S}s_{0,j}}{\sum_{j\in S}s_{1,j}}.
+
 $$
+
 展开化简等于合法 ECDSA $s$ 字段.
 
 (3) 工程加固: 本地跑一遍 ECDSA 标准验签, 失败即 abort.

@@ -1,1 +1,8 @@
 **/.claude/
+_site/
+_build/
+tools/myst-notes/node_modules/
+tools/myst-notes/dist/
+tools/myst-notes/*.vsix
+*.nb-tmp
+__pycache__/

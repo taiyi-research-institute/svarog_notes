@@ -1,3 +1,7 @@
+---
+title: "杂记：再随机化"
+---
+
 # 再随机化 $\zeta_i$
 
 Pre-sign 阶段每方衍生分片 $x'_i := \lambda(i,S) x_i + \zeta_i + \nabla x \cdot |S|^{-1}$ 里的中间项. 见 `07-orchestration.md` Pre-sign Round 1 (2).
@@ -17,14 +21,20 @@ $\zeta_i$ 是本方私有, 但全员加起来必须满足 $\sum_{i\in S}\zeta_i 
 ## 构造
 
 Keygen Round 3 时, 每对 $i > j$ 摇了对称盲化项 $\epsilon_{i,j} \in \mathbb{B}^{256}$, 双方都存. Sign 时双方对称地从这一颗种子派生一个只供这次签名用的标量:
+
 $$
+
 \zeta_{i,j} := \mathrm{Hash}(\epsilon_{\max(i,j),\min(i,j)}, \mathrm{sid}, S) \in \mathbb{Z}_n. \tag{zeta-ij}
+
 $$
 
 然后用一个反对称权重把所有 pairwise $\zeta_{i,j}$ 拼成 $\zeta_i$:
+
 $$
+
 \zeta_i := \sum_{j\in S\setminus\{i\}} \mathrm{sgn}(i,j)\cdot \zeta_{i,j}, \quad
 \mathrm{sgn}(i,j) := \begin{cases} +1 & i > j \\ -1 & i < j \end{cases}. \tag{zeta}
+
 $$
 
 妙处 1: 全局加起来是 0

@@ -1,3 +1,7 @@
+---
+title: "草稿"
+---
+
 # 为什么 $p \le \mathsf{negl} + \varepsilon$ —— 补全那个"于是"
 
 那个"于是"确实吞掉了一步，而且吞掉的恰恰是**整个定理被调用的那一下**。补全如下。
@@ -5,9 +9,11 @@
 推导其实是三行，每行各有一个出处：
 
 $$
+
 p \;=\; \Pr[\mathcal{Z}\to 1 \mid \text{real}]
 \;\le\; \Pr[\mathcal{Z}\to 1 \mid \text{ideal}] + \varepsilon
 \;\le\; \mathsf{negl} + \varepsilon
+
 $$
 
 ## 第一个等号：$\mathcal{Z}$ 的构造使然
@@ -19,8 +25,10 @@ $$
 定理说的是
 
 $$
+
 \forall \mathcal{Z}:\quad
 \left| \Pr[\mathcal{Z}\to 1 \mid \text{real}] - \Pr[\mathcal{Z}\to 1 \mid \text{ideal}] \right| \le \varepsilon
+
 $$
 
 我们手上这个 $\mathcal{Z}$ 只是全称量词覆盖的**其中一个实例**——定理对所有环境成立，自然对这个专门造出来抓小偷的环境也成立。把绝对值不等式单边展开，就是 $\Pr_{\text{real}} \le \Pr_{\text{ideal}} + \varepsilon$。
@@ -38,11 +46,13 @@ $$
 ## 退一步看：责任账本的定量版
 
 $$
+
 \Pr[\text{坏事} \mid \text{real}]
 \;\le\;
 \underbrace{\Pr[\text{坏事} \mid \text{ideal}]}_{\text{独立假设管辖}}
 \;+\;
 \underbrace{\varepsilon}_{\text{hybrid 论证管辖}}
+
 $$
 
 右边两项来源完全不同：

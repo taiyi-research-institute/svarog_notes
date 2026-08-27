@@ -1,6 +1,10 @@
+---
+title: "Endemic OT"
+---
+
 参考: Masny-Rindal, "Endemic Oblivious Transfer", Fig. 8, https://eprint.iacr.org/2019/706.pdf.
 
-Endemic OT 本质上是安全定义更弱的 Base OT. 虽然安全定义更弱, 但证明更完备. 而 [[00-mta-baseot]] 中的 OT 难以构造证明.
+Endemic OT 本质上是安全定义更弱的 Base OT. 虽然安全定义更弱, 但证明更完备. 而 [MtA 与 Base OT](./00-mta-baseot.md) 中的 OT 难以构造证明.
 
 # 1. Endemic OT 两轮交互版
 
@@ -25,7 +29,9 @@ Endemic OT 本质上是安全定义更弱的 Base OT. 虽然安全定义更弱, 
 对每个 OT 实例编号 $i$:
 
 Receiver 采样盲化项 $u_i\in \mathbb{Z}_q$, 这里 $q$ 为曲线点群的阶; 另采样新鲜随机串 $w_i$. 然后对选项 $s_i$ 进行如下承诺:
+
 $$
+
 \begin{align*}
 R_i^{1-s_i} &:=
 \mathtt{HashToGroup}(\mathtt{sid}, \mathtt{tag1}, i, w_i), \\
@@ -37,7 +43,9 @@ R_i^{1-s_i}
 ).
 \end{align*}
 \tag{R}
+
 $$
+
 三点说明. 其一, $\mathtt{HashToGroup}$ 输出离散对数未知的随机曲线点. 其二, $w_i$ 必须新鲜且保密: 若 $R_i^{1-s_i}$ 只由公开值算出, Sender 重算一遍就能认出它, 选项当场泄露. 其三, 原文 Fig. 8 此处只要求 $R_i^{1-s_i}$ 是均匀随机点, 对 Receiver 是否知道其离散对数不做说明. 这里用 $\mathtt{HashToGroup}$ 是加固.
 
 最后, Receiver 留存 $s_i, u_i$, 按上标顺序发送 $(R_i^0, R_i^1)$.
@@ -47,7 +55,9 @@ $$
 对每个 OT 实例编号 $i$:
 
 Sender 无法区分收到的 $R_i^0, R_i^1$ 中哪个承载着选项, 这正是协议追求的效果. 计算如下半密钥:
+
 $$
+
 \begin{align*}
 U_i^0 &:= R_i^0 + \mathtt{HashToGroup}(
 \mathtt{sid}, \mathtt{tag2}, 0, i,
@@ -58,29 +68,39 @@ U_i^1 &:= R_i^1 + \mathtt{HashToGroup}(
 R_i^0
 ).
 \end{align*}
+
 $$
+
 两点说明. 其一, 这里复用 Receiver 侧的 $\mathtt{tag2}$, 是正确性的前提. 其二, 必须用点哈希, 不能偷懒写成 $\mathtt{Hash}(\cdots)\cdot G$, 否则 Receiver 能本地计算两个 $U_i$ (读者自行推导), 进而解出两把全密钥.
 
 Sender 采样 $v_i^0, v_i^1 \in \mathbb{Z}_q$, 令 $V_i^0:=v_i^0 G$, $V_i^1 := v_i^1 G$. 生成全密钥:
+
 $$
+
 \begin{align*}
 \rho_i^0 &:= \mathtt{Hash}(\mathtt{sid}, \mathtt{tag3}, 0, i,\,
 v_i^0\cdot U_i^0), \\
 \rho_i^1 &:= \mathtt{Hash}(\mathtt{sid}, \mathtt{tag3}, 1, i,\,
 v_i^1\cdot U_i^1).
 \end{align*} \tag{keys}
+
 $$
+
 Sender 输出 $\rho_i^0, \rho_i^1$, 发送 $V_i^0, V_i^1$.
 
 ### 1.2.3. Receiver 输出所选的全密钥
 
 对每个 OT 实例编号 $i$, Receiver 计算
+
 $$
+
 \rho_i^{s_i}:=\mathtt{Hash}(
 \mathtt{sid}, \mathtt{tag3}, s_i, i,\,
 u_i\cdot V_i^{s_i}
 ).
+
 $$
+
 正确性: $u_i\cdot V_i^{s_i} = v_i^{s_i}\cdot (u_i G) = v_i^{s_i}\cdot U_i^{s_i}$, 恰为 Sender 在 $(\text{keys})$ 中喂给哈希的点.
 
 ## 1.3. 回顾安全承诺

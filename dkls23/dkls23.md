@@ -1,3 +1,7 @@
+---
+title: "DKLS23 论文精读"
+---
+
 ### pp3 sec1.1 "A Brief History of Threshold ECDSA"
 
 每种历史方案 = 改写 ECDSA 签名方程的方式 + 针对改写设计的算法 + 针对改写设计的防作弊检查
@@ -30,12 +34,15 @@ return R, s;
 原句: The computation of secret shares of $w$ can be performed locally by the parties given shares $\phi$ and $v = \mathtt{sk}\cdot\phi$.
 
 这句话的意思是, 在各方已经摇出 $\phi$ 的加法分片以及算出 $v$ 的加法分片后, 各方就可以本地合成 $w$ 的加法分片. 原理如下式:
+
 $$
+
 \begin{aligned}
 w &= (a+\mathtt{sk}\cdot b)\phi \\
 &= a\phi + b\cdot \mathtt{sk}\cdot \phi \\
 &= a\phi + bv.
 \end{aligned}
+
 $$
 
 ### pp7 sec1.2 "$v$ and $u$ are computed ideally"

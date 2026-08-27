@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "symbols": {
+    "\\beta": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:19:51.664Z"
+    },
+    "\\cdot": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:54:49.359Z"
+    },
+    "\\chi": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:54:49.358Z"
+    },
+    "\\delta": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:54:53.782Z"
+    },
+    "\\eqref{leaf}": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:55:12.535Z"
+    },
+    "\\hat": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:54:49.359Z"
+    },
+    "\\in": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:19:51.664Z"
+    },
+    "\\kappa": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:15:33.256Z"
+    },
+    "\\lambda": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:19:51.664Z"
+    },
+    "\\left": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:19:51.664Z"
+    },
+    "\\mathrm{bit}": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:54:53.782Z"
+    },
+    "\\mathrm{ext}": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:54:49.359Z"
+    },
+    "\\odot": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:06:28.294Z"
+    },
+    "\\oplus": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:06:28.294Z"
+    },
+    "\\rho": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:19:51.664Z"
+    },
+    "\\right": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:19:51.664Z"
+    },
+    "\\sum": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:54:49.358Z"
+    },
+    "\\tag{beta-tilde}": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:54:49.359Z"
+    },
+    "\\tag{qmat}": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:06:28.294Z"
+    },
+    "\\tag{wmat}": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:54:53.782Z"
+    },
+    "\\tilde": {
+      "count": 0,
+      "lastUsed": "2026-08-27T07:54:49.358Z"
+    }
+  }
+}

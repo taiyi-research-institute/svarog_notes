@@ -1,3 +1,7 @@
+---
+title: "杂记：gadget 向量"
+---
+
 ## gadget 向量替代二进制权重
 
 前文使用 $2^j$ 作为权重把 $\beta_j$ 聚合成 $\hat{x}_b$, 也把 $t_j$ 聚合成 $z_b$. 此处 $j$ 的范围是 $1$ 到 $m$, 取 $m=\kappa$ (这里 $\kappa=|n|$ 表示模数比特数). 称这种为**朴素二进制方案**.
@@ -7,21 +11,27 @@ DKLS23 实际采用的是**随机 gadget 方案**: 用公开的随机向量 $\ma
 形式上前文协议保持不变, 仅做如下记号替换:
 
 $$
+
 2^j\;\longmapsto\;g_j,\qquad m=\kappa\;\longmapsto\;m=\kappa+2\lambda_s.
+
 $$
 
 具体地,
 
 $$
+
 \hat{x}_b=\sum_j g_j\cdot\beta_j,\quad
 z_a=-\sum_j g_j\cdot\alpha^0_j,\quad
 z_b=\sum_j g_j\cdot t_j.
+
 $$
 
 $\mathbf{g}$ 是公开参数, 协议双方都可见, 实践中通过 sid 派生:
 
 $$
+
 g_j=\mathrm{Hash}(\mathrm{sid}\,\|\,\texttt{"gadget"}\,\|\,j)\bmod n. \tag{gvec}
+
 $$
 
 前文的公式 "za+zb", "v.proof" 等的证明全部沿用, 不受影响.
@@ -31,7 +41,9 @@ $$
 为了把"差别"讲清楚, 先引入一个新记号 $\boldsymbol{\beta}$, 定义为 Bob 在 $m$ 个 OT 实例中所有选择位拼成的**比特向量**:
 
 $$
+
 \boldsymbol{\beta}=(\beta_1,\beta_2,\ldots,\beta_m)\in\mathbb{B}^m.
+
 $$
 
 注意 $\boldsymbol{\beta}$ 和已有的 $\hat{x}_b=\sum_j g_j\beta_j\in\mathbb{Z}_n$ 是两个不同的对象:
@@ -49,7 +61,9 @@ $$
 更精确地, 由 leftover hash lemma:
 
 $$
+
 \bigl(\mathbf{g},\,\hat{x}_b\bigr)\;\stackrel{s}{\approx}\;\bigl(\mathbf{g},\,U\bigr),\quad U\stackrel{\$}{\leftarrow}\mathbb{Z}_n.
+
 $$
 
 统计距离 $\leq \frac{1}{2}\sqrt{n/2^m}=\frac{1}{2}\cdot 2^{-\lambda_s}$, 可忽略. 等价表述: **即便公开 $\mathbf{g}$, $\hat{x}_b$ 的分布与 $\mathbb{Z}_n$ 上均匀随机数在统计上几乎不可区分**, 也就是 $\hat{x}_b$ 几乎不携带 $\boldsymbol{\beta}$ 的信息.
