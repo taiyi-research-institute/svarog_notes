@@ -1,0 +1,44 @@
+% 候选 1: article + xeCJK —— 自制单栏论文模板
+% 英文论文版式, 中文用 xeCJK 挂字体。零类文件依赖, 完全可控。
+\documentclass[11pt]{article}
+\usepackage[margin=2.6cm]{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{longtable,booktabs,array}
+
+% --- 中文: 正文宋体, 标题黑体 (按文件名加载, 兼容无 fontconfig 的环境) ---
+\usepackage{xeCJK}
+\setCJKmainfont{FandolSong-Regular.otf}[BoldFont=FandolSong-Bold.otf,ItalicFont=FandolKai-Regular.otf]
+\setCJKsansfont{FandolHei-Regular.otf}[BoldFont=FandolHei-Bold.otf]
+\setCJKmonofont{FandolFang-Regular.otf}
+\newCJKfontfamily\heiti{FandolHei-Regular.otf}
+
+% --- 标题样式: 黑体(论文观感) ---
+\usepackage{titlesec}
+\titleformat*{\section}{\Large\bfseries\heiti}
+\titleformat*{\subsection}{\large\bfseries\heiti}
+\titleformat*{\subsubsection}{\normalsize\bfseries\heiti}
+
+% --- 交叉引用其他笔记 PDF(独立编译时用; 编进一本时删掉这两行) ---
+% \usepackage{xr-hyper}
+% \externaldocument{00-mta-baseot}
+% \externaldocument{06-rvole}
+
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+\renewcommand{\abstractname}{摘要}
+
+\title{DKLS23 学习笔记: MtA 乘法转加法}
+\author{作者}
+\date{2026 年 8 月}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本笔记整理 MtA 协议的理想功能与构造, 以及它的加法分片性质。
+\end{abstract}
+
+\noindent\textbf{关键词:} 门限签名; MtA; ECDSA
+
+\input{/home/wenke/svarog_notes/dkls23/00-mta-baseot}
+\end{document}

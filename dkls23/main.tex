@@ -1,0 +1,107 @@
+% ============================================================
+%  DKLS23 学习笔记 · 单栏论文模板
+%  article + xeCJK: 英文论文版式, 中文宋体正文 / 黑体标题
+%  全部宏包 TeX Live 自带; 无页眉 (页脚中央页码)
+%
+%  每篇笔记一份 PDF. 标题由片段的 "% title: ..." 注释自动注入 (template/wrap.py),
+%  无作者 / 日期 / 摘要 / 关键词. 唯一手动开关是 \input 行
+%  (文件里唯一一个 \input, make 生成包装文件时自动替换).
+%
+%  编译: make                    # 全量 15 篇 (任何片段改动都会自动全量重编)
+%        make pdf/06-rvole.pdf   # 只编译一篇
+%  (产物在 pdf/)
+% ============================================================
+% article 类只支持 10/11/12pt, 14pt 要换 extarticle (article 的同款克隆, TeX Live 自带)
+\documentclass[14pt]{extarticle}
+% 四边均匀砍掉 1/3: 2.6cm → 1.73cm
+\usepackage[top=1.73cm,left=1.73cm,right=1.73cm,bottom=1.73cm]{geometry}
+% 数学字体: STIX Two Math (学术出版标准, 笔画扎实, 与宋体正文协调)。
+% unicode-math 必须最后加载 (amsmath/amssymb 之后)。
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{unicode-math}
+\setmathfont{latinmodern-math.otf}
+\usepackage{longtable,booktabs,array}
+\usepackage{enumitem}
+\setlist{nosep}
+
+% --- 中文: 正文思源宋体 / 标题思源黑体 (Noto CJK SC)
+%     装于 texmf-local (kpsewhich 按文件名解析, 兼容无 fontconfig)。
+%     静态 Regular/Bold 实例, 由可变字体用 fontTools varLib.instancer 生成
+%     (XeTeX 不认 OpenType fvar, 轴键 RawAxis/Variations 会被静默忽略)。
+%     Fandol 太细, 大字号发虚, 所以换思源。
+\usepackage{xeCJK}
+% 正文西文同样走思源宋体 (article 默认的 Latin Modern 渲染太细)。
+% 斜体: 思源无斜体面, 用楷体替代 (与中文斜体一致, ctex 惯例)。
+\setmainfont{NotoSerifSC-Regular.ttf}[
+  BoldFont=NotoSerifSC-Bold.ttf,
+  ItalicFont=FandolKai-Regular.otf,
+]
+\setCJKmainfont{NotoSerifSC-Regular.ttf}[
+  BoldFont=NotoSerifSC-Bold.ttf,
+  ItalicFont=FandolKai-Regular.otf,
+]
+\setCJKsansfont{NotoSansSC-Regular.ttf}[
+  BoldFont=NotoSansSC-Bold.ttf,
+]
+\setCJKmonofont{FandolFang-Regular.otf}
+% 标题黑体 Medium (500): Regular 太轻, SemiBold 略重 (instancer 从可变字体生成)
+\newCJKfontfamily\heiti{NotoSansSC-Medium.ttf}[BoldFont=NotoSansSC-Bold.ttf]
+% 标题里的西文 (MtA/DKLS23 等) 跟中文一起用黑体: \heiti 只接管 CJK 字符,
+% 西文要另切 fontspec 族 (同样的 NotoSansSC)
+\newfontfamily\heitiLatin{NotoSansSC-Medium.ttf}[BoldFont=NotoSansSC-Bold.ttf]
+
+% --- 章节标题黑体 (中英一致无衬线), 论文观感 ---
+% 标题字体本身已是 SemiBold, 不加 \bfseries (无衬线再粗就笨重)
+% 编号显示加英文句点结尾 ("1." "1.1."), 只改显示不改 \thesection → \ref 引用仍是干净的 "1.1"
+\usepackage{titlesec}
+\titleformat{\section}{\Large\heitiLatin\heiti}{\thesection.}{1em}{}
+\titleformat{\subsection}{\large\heitiLatin\heiti}{\thesubsection.}{1em}{}
+\titleformat{\subsubsection}{\normalsize\heitiLatin\heiti}{\thesubsubsection.}{1em}{}
+
+% --- 笔记排版: 段间空行, 段首不缩进 ---
+% 行距 1.3 倍 (ctex/ustcthesis 标准: 1.2 基线 × 1.3 = 1.56 倍字号; article 默认只有 1.2)
+\linespread{1.3}
+\setlength{\parindent}{0pt}
+% 段距 1em: 0.6em 在 1.3 行距下与行距混成一片, 没有段落区分度
+\setlength{\parskip}{1em}
+
+% --- 页眉: 无. article 默认 pagestyle=plain, 只有页脚中央页码 ---
+\pagestyle{plain}
+
+% --- 跨笔记引用: 其它 14 篇的 .aux 提供标签, 链接跳到 pdf/ 里的 PDF ---
+%     make 全量编译时自动刷新; 单篇编译注意 stale aux (见 Makefile 注释)
+\usepackage{xr-hyper}
+\externaldocument{00-mta-baseot}
+\externaldocument{01-iknp03}
+\externaldocument{02-kos15}
+\externaldocument{03-endemic-ot}
+\externaldocument{04-pprf}
+\externaldocument{05-softspoken}
+\externaldocument{06-rvole}
+\externaldocument{07-orchestration}
+\externaldocument{dkls23}
+\externaldocument{misc-f2k}
+\externaldocument{misc-fiat-shamir}
+\externaldocument{misc-gadget}
+\externaldocument{misc-rerand}
+\externaldocument{temp}
+\externaldocument{uc-framework}
+
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+
+% ==================== 每篇笔记改这里 ====================
+% 标题由 Makefile 从片段的 "% title: ..." 注释注入到 \doctitle (见 template/wrap.py)。
+% 中英文都走黑体 (\heiti 中文 / \heitiLatin 西文), \mdseries 抵消默认粗体。
+% 只显示标题, 无作者 / 日期 / 摘要 / 关键词。
+\providecommand{\doctitle}{未命名笔记}
+
+\begin{document}
+\begin{center}
+  {\LARGE\heitiLatin\heiti\mdseries\doctitle\par}
+\end{center}
+\vspace{1em}
+
+% >>> 要编译的笔记片段: 改这一行 <<<
+\input{00-mta-baseot}
+\end{document}

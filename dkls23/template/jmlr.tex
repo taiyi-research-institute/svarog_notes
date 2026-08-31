@@ -1,0 +1,23 @@
+% 候选 3: jmlr.cls (TeX Live 自带) —— JMLR 机器学习期刊的单栏版式
+% 观感干净, 但标题块是期刊专属仪式(卷/期/页), 且没有 LNCS 的密码学血缘。
+\documentclass[11pt]{jmlr}
+\usepackage{xeCJK}
+\setCJKmainfont{FandolSong-Regular.otf}[BoldFont=FandolSong-Bold.otf,ItalicFont=FandolKai-Regular.otf]
+\setCJKsansfont{FandolHei-Regular.otf}[BoldFont=FandolHei-Bold.otf]
+\setCJKmonofont{FandolFang-Regular.otf}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{longtable,booktabs,array}
+
+\title{DKLS23 学习笔记: MtA 乘法转加法}
+\author{作者}
+\jmlrvolume{1}
+
+\begin{document}
+\jmlrmaketitle
+
+\begin{abstract}
+本笔记整理 MtA 协议的理想功能与构造, 以及它的加法分片性质。
+\end{abstract}
+
+\input{/home/wenke/svarog_notes/dkls23/00-mta-baseot}
+\end{document}

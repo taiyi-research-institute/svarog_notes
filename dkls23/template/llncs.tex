@@ -1,0 +1,27 @@
+% 候选 2: Springer LNCS (llncs.cls, TeX Live 自带) —— 密码学会议的标准单栏格式
+% Eurocrypt/TCC/Asiacrypt 等会议论文集就是这种版式; Springer 系 Q4/EI 期刊也常见。
+% 中文同样用 xeCJK 挂载。注意: LNCS 对页数/字号有版面约束。
+\documentclass{llncs}
+\usepackage{xeCJK}
+\setCJKmainfont{FandolSong-Regular.otf}[BoldFont=FandolSong-Bold.otf,ItalicFont=FandolKai-Regular.otf]
+\setCJKsansfont{FandolHei-Regular.otf}[BoldFont=FandolHei-Bold.otf]
+\setCJKmonofont{FandolFang-Regular.otf}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{longtable,booktabs,array}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+
+\title{DKLS23 学习笔记: MtA 乘法转加法}
+\author{作者}
+\institute{某单位}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本笔记整理 MtA 协议的理想功能与构造, 以及它的加法分片性质。
+\keywords{门限签名 \and MtA \and ECDSA}
+\end{abstract}
+
+\input{/home/wenke/svarog_notes/dkls23/00-mta-baseot}
+\end{document}

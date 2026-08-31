@@ -1,0 +1,769 @@
+% !TEX root = 02-kos15.tex
+% title: KOS15 恶意安全
+
+
+IKNP03 OT 扩展 末尾“半诚实的边界”第（1）条留了个洞：Sender
+对校正矩阵 $u$ 照单全收，恶意 Receiver 逐行掺入不同的选择向量，
+就能把 $s$ 一个比特一个比特地撬出来。KOS15 用一轮“挑战-响应”
+堵住这个洞 ------ Receiver 必须先对自己的 $b$ 做一次承诺，通不过就
+abort。
+
+本篇沿用 IKNP03 OT 扩展 的全部记号：$\kappa\times m$ 矩阵
+（$\kappa$ 行是种子方向，$m$ 列是实例方向），$A_{i,*}$ 是第 $i$ 行，$A_{*,j}$ 是第 $j$ 列，
+域分离参数 $(\mathtt{sid}, \mathtt{tag}, j)$。算符“$\oplus$”
+是按位异或；算符“$\odot$”是按位与，优先级高于按位异或。另外，
+定义连加算符“$\sum$”是连续按位异或，连乘算符“$\prod$”
+是连续按位与，定义两个向量的内积“$\left<x,\, y\right>$”
+为 $\sum_i x_i\odot y_i$。本篇还会用到域乘法“$\cdot$”（见
+2.2.（2））；三种乘性算符与内积的运算律备在附录 D，推导卡壳时请去那里对账。
+
+\section{IKNP Sender 的问题}
+
+在 IKNP 里，Sender 对 Receiver 发来的校正矩阵 $u$ 是照单全收的。他计算
+\begin{equation}
+\label{eq:02-kos15:1}
+q_{i,*} = F\left(\mathtt{sid},\,\mathtt{tag},\,k^{s_i}_i\right) \oplus \left(s_i \odot u_{i,*}\right),
+\end{equation}
+
+并信任“$u$ 里每一行都编码了同一个选择向量 $b$”。
+
+但恶意 Receiver 可以对每行 $i$ 用不同的 $b^{i}$ 来构造 $u$：
+\begin{equation}
+\label{eq:02-kos15:2}
+u_{i,*} = t^0_{i,*} \oplus t^1_{i,*} \oplus b^{i}.
+\end{equation}
+
+\subsection{\texorpdfstring{Receiver 可以窥探 $s_h$}{Receiver 可以窥探s\_h}}
+
+Receiver 对 $b$ 矩阵（共 $\kappa$ 行，每行是一个长度 $m$ 的选择向量）
+进行这样的加工：选定某第 $j$ 个 OT 实例，选定 $h\in[\kappa]$，
+令整个 $b$ 矩阵只有第 $(h, j)$ 个元素为 1，其余全 0。于是第 $j$ 列有
+\begin{equation}
+\label{eq:02-kos15:3}
+q_{*,j} = t^0_{*,j} \oplus \left(s \odot e_{h}\right),
+\end{equation}
+
+其中 $e_{h}$ 是第 $h$ 个标准基向量，即第 $h$ 元素为 1，其余为 0 的向量。
+注意 $s \odot e_{h} = s_{h} e_{h}$，也就是说只有第 $h$ 行可能被翻转，
+翻不翻取决于 $s_h$。
+
+Receiver 知道 $t^0_{*,j}$。所以 $K_j^0$ 的值对他来说只有两种情况，即：*
+假设 $s_{h}=0$，
+那么 $K^0_j=\mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,t^0_{*,j}\right)$。
+* 假设 $s_{h}=1$，
+那么 $K^0_j=\mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,t^0_{*,j} \oplus e_{h}\right)$。
+
+Sender
+用真实的 $K^0_j = \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,q_{*,j}\right)$ 加密某个具体内容。
+Receiver 收到密文后用两个候选密钥各解密一次，能解出有意义内容的那个，
+就揭示了 $s_{h}$ 的真实值。
+对不同的列 $j$ 换一个 $h$ 重复此过程，$\kappa$ 次之后 Receiver
+掌握了完整的 $s$。
+
+问题：诚实 Receiver 也知道自己的 $b_j$，能否用于反推 Sender 的 $s_i$?
+
+回答：不能。如果 Receiver 采用诚实的 $b$，
+那么他不知道的那把密钥 $K_j^{1-b_j}$ 的原像是 $t^0_{*,j}$ 异或上整个未知的 $s$，
+候选情况有 $2^\kappa$ 种，而非攻击场景里的 2 种。
+
+\subsection{Receiver 解开两条消息}
+
+Receiver 得到 $s$ 之后，对任意 OT 实例 $j$，均可算出两把密钥：
+\begin{align}
+K^0_j &= \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,t^0_{*,j}\right),
+\\
+K^1_j &= \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,t^0_{*,j} \oplus s\right).
+\end{align}
+
+第一把本来就不需要 $s$，第二把现在也能算了。至此 Receiver
+能够解密 $C^0_j$ 和 $C^1_j$，OT 安全性完全失效。
+
+\section{朴素版 KOS15}
+
+本章只搭“挑战-响应”的骨架：挑战由 Sender 直接生成，不设陪跑。
+代价是安全假设与安全承诺都要打折；打折之处逐一挂账，由第 3
+章的进阶版偿还。
+
+\subsection{规格}
+
+输入输出：与 IKNP03 OT 扩展 Payload OT 相同，汇总如下表。
+
+\begin{longtable}[]{@{}clcccc@{}}
+\toprule\noalign{}
+变量 & 意义 & 归属 & 方向 & 大小/数量 & \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+$s$ & 种子选项 & S & 输入 & $\kappa$ & \\
+$k_i^{s_i}$ & 单侧种子 & S & 输入 & $\kappa$ 个 & \\
+$(M^0_j,\, M^1_j)$ & 成对消息 & S & 输入 & $m$ 对 & \\
+$(k^0_i,\, k^1_i)$ & 成对种子 & R & 输入 & $\kappa$ 对 & \\
+$b$ & 负载选项 & R & 输入 & $m$ & \\
+$M_j^{b_j}$ & 所选消息 & R & 输出 & $m$ & \\
+\end{longtable}
+
+安全承诺：
+
+\begin{itemize}
+
+\item
+  Receiver 不知道 $s$ 和 $M_j^{1-b_j}$，
+\item
+  Sender 不知道 $k_i^{1-s_i}$。
+\item
+  Sender 不知道 $b$ 在本章要打折，详见 2.3.2。
+\end{itemize}
+
+安全假设：
+
+\begin{itemize}
+
+\item
+  \textbf{Receiver 从半诚实升级为恶意}：他可以任意偏离协议，尤其可以像第
+  1 节那样逐行掺入不同的 $b^{i}$。
+\item
+  Sender 仍假设半诚实，\textbf{并且诚实地摇出随机挑战}，见 §2.2.（2）。
+  Sender 侧作恶（selective failure）是另一条线，见 随机 VOLE。
+\item
+  其余假设不变：Base OT 来历合规、对称原语可靠。
+\end{itemize}
+
+\subsection{实施}
+
+比 IKNP 多出第（2）（3）（4）三步挑战-响应。其余步骤沿用 IKNP。
+
+Receiver 持有 $\kappa$ 对种子 $\left(k^0_i,\, k^1_i\right)$，Sender
+持有选择向量 $s$ 和单侧种子 $k^{s_i}_i$。
+
+\subsubsection{Receiver 发送半密钥}
+
+Receiver 计算半密钥并发给 Sender，同 IKNP03 OT 扩展（umat）。
+\begin{equation}
+\label{eq:02-kos15:umat}
+u_{i,*} := t^0_{i,*} \oplus t^1_{i,*} \oplus b, \tag{umat}
+\end{equation}
+
+其中 $t^0_{i,*}=F\left(\mathtt{sid},\,\mathtt{tag},\,k^0_i\right)$，$t^1_{i,*}=F\left(\mathtt{sid},\,\mathtt{tag},\,k^1_i\right)$。
+
+IKNP 确立了 $u$ 是半密钥的地位。KOS 引入挑战-响应机制，
+这给 $u$ 确立了另一个地位：$b$ 的承诺。
+
+\subsubsection{Sender 发起随机挑战}
+
+Sender 生成如下随机挑战向量发给 Receiver，
+\begin{equation}
+\label{eq:02-kos15:chal}
+\boldsymbol{\chi} = \left(\chi_1, \ldots, \chi_m\right)
+\in \mathbb{GF}(2^\kappa)^m. \tag{chal}
+\end{equation}
+
+有限域 $\mathbb{GF}(2^\kappa)$ 的元素是次数（degree）
+小于 $\kappa$ 的多项式。这种多项式的系数来自 $\mathbb{Z}_2$，也就是 0
+或 1。如果把多项式的系数表示成比特串，那么元素加法是按位异或。
+至于元素的乘法，难以简单描述，详见 杂记：F\_2\^{}k。
+
+本篇约定 $\kappa$-bit 串与 $\mathbb{GF}(2^\kappa)$ 元素相互等同：
+串 $a = (a_1, \ldots, a_\kappa)$ 对应多项式 $\sum_i a_i x^{i-1}$。
+特别地，标准基向量 $e_i$ 对应单项式 $x^{i-1}$，单比特 0/1 对应常数 0/1。
+域乘法记作“$\cdot$”，将在（com-t0）与（verify）真正登场。
+
+\subsubsection{Receiver 响应挑战}
+
+Receiver 把 $t^0$ 的各列视为域元素，以挑战为权重，
+把整张矩阵打包成单个域元素：
+\begin{equation}
+\label{eq:02-kos15:com-t0}
+\tau := \sum_{j=1}^{m} t^0_{*,j} \cdot \chi_j ~, \tag{com-t0}
+\end{equation}
+
+式中“$\cdot$”是 $\mathbb{GF}(2^\kappa)$ 乘法。类似地，Receiver
+为 $b$ 打包出
+\begin{equation}
+\label{eq:02-kos15:com-b}
+\rho := \left<\boldsymbol{\chi},\, b\right>
+=\sum_{j=1}^{m} b_j \odot \chi_j ~. \tag{com-b}
+\end{equation}
+
+由于 $b_j$ 是单比特，这里的乘法退化为“选不选 $\chi_j$”。上式向
+Sender 交出了 $b$ 的信息，详见 §2.3.2。
+
+最后，Receiver 给 Sender 发送 $\tau$ 和 $\rho$，合计 $2\kappa$ 比特。
+
+为什么（com-t0）非用域乘法不可? 若只用比特选择，
+整列 $t^0_{*,j}$ 乘不上 $\chi_j$，就只能退而逐行出具 $\kappa$ 个校验值，
+通信量 $\kappa^2$ 比特。把整列当作域元素一起乘，一条 $\kappa$-bit
+的 $\tau$ 就压缩了整张矩阵；而域乘法“无零因子”
+的性质保证压缩不折损可靠性，见附录 B。
+
+\textbf{可迁移的思想 1：基于 Schwartz-Zippel 引理设计压缩校验.} Sender
+真正想验的是 $m$ 个逐列等式。然而朴素的逐列检验需要 Receiver
+提供 $t^0$ 和 $b$，这直接打破安全假设，因而不可行。
+随机线性组合把 $m$ 个等式压成一个像（image），如果任何一列不诚实，
+那么压缩后的等式会以 $(1 - 2^{-\kappa})$ 的概率不成立。这个概率保证来自
+Schwartz-Zippel 引理，详见附录 A。
+
+\subsubsection{Sender 验证挑战}
+
+Sender 计算全密钥原像，与 IKNP03 OT 扩展（qmat）相同：
+\begin{equation}
+\label{eq:02-kos15:qmat}
+q_{i,*} := t_{i,*}^{s_i} \oplus s_i \odot u_{i,*}. \tag{qmat}
+\end{equation}
+
+Sender 把 $q$ 的各列同样打包，然后验证单条等式：
+\begin{equation}
+\label{eq:02-kos15:verify}
+\sum_{j=1}^{m} q_{*,j} \cdot \chi_j
+\stackrel{?}{=}
+\tau \oplus \rho \cdot s. \tag{verify}
+\end{equation}
+
+若上式不成立，则 Sender 中止协议。
+
+Sender 到底在验什么? TLDR：Sender 在验 $q$（等价于验 $u$）是否诚实。
+诚实 Receiver 必然通过验证；不诚实 Receiver
+“给 $u$ 掺假 $d$ 行而不败露”的概率约为 $2^{-\min(d,\,\kappa-d)}$，
+浅掺假（$d \le \kappa/2$）时即 $2^{-d}$。详细论证见附录 B。
+
+\subsubsection{Sender 派生密钥，Receiver 解开密文}
+
+这部分与 IKNP 一致，本节仅回顾重点。
+
+Sender 对每个 OT 实例 $j$，计算密钥用于 Enc。
+\begin{align}
+K^0_j &:= \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,q_{*,j}\right), \\
+K^1_j &:= \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,q_{*,j} \oplus s\right).
+\end{align}
+
+Receiver 只能派生出密钥
+\begin{equation}
+\label{eq:02-kos15:10}
+K^{b_j}_j := \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,t^0_{*,j}\right).
+\end{equation}
+
+\subsection{核对安全承诺}
+
+仿照 IKNP03 OT 扩展 §2.3.1 逐条核对，重点在 KOS 改变了什么。
+
+\subsubsection{\texorpdfstring{Receiver 得不到 $M_{1-b}$.}{Receiver 得不到M\_\{1-b\}.}}
+
+归约链与 IKNP 相同。归约到“算不出另一把密钥”，再归约到“Receiver
+不知道 $s$”。KOS 的贡献是把这条链的适用范围从半诚实 Receiver
+升级到恶意 Receiver。由 §1，窥探 $s$ 的唯一途径是往 $u$ 里掺假。由
+（pass）的刻画，掺假 $d$ 行而不败露的概率约 $2^{-d}$，
+即便得手也只换得 $d$ 比特，$s$ 还剩 $\kappa - d$ 比特熵，
+另一把密钥 $K^{1-b_j}$ 的原像依旧不可预测。
+
+把上一段话变成严格证明比看上去难得多。KOS15 原文的证明后来被指出有缺口，
+由后人重做（Roy，SoftSpokenOT，CRYPTO 2022），
+不过协议本身至今没有已知攻击。此外还有一笔暗账:“败露即 abort”不等于
+“败露即一无所获”，abort 本身对作弊者也是有用的，详见 §3.3
+末尾的跨会话攻击。
+
+\subsubsection{\texorpdfstring{Sender 得不到 $b$：打折.}{Sender 得不到b：打折.}}
+
+IKNP 所倚仗的（umat）一次一密被继承下来：$u$ 在 Sender 眼里是均匀分布，
+零泄露。泄露出在 KOS
+新增的消息 $\rho = \left<\boldsymbol{\chi},\, b\right>$，
+有两种泄露机制，各自对应第 3 章的一个修补。其余承诺（半诚实 Sender
+拿不到 $k^{1-s_i}_i$，对称原语假设）与 IKNP 相同，不再赘述。
+
+\textbf{机制一：半诚实 Sender 求解 $b$。修补：3.2.（0）陪跑混淆.}
+
+泄露的载体是 $\rho$，是协议要求 Receiver 发送的，与 Sender 的行为无关。
+Sender 唯一要做的“坏事”是不删日志。我们把（com-b）
+改写成如下矩阵形式，
+式中 $X:=\left\{\chi_j\right\}$ 为 $\kappa \times m$ 布尔矩阵。
+\begin{equation}
+\label{eq:02-kos15:11}
+\rho = Xb,~ X_{*,j}:=\chi_j.
+\end{equation}
+
+上式的信息量有多大? 随机 $\chi$ 之下 $X$ 有极大概率是满秩的，
+使得 $b$ 的候选空间从 $2^m$ 收缩到 $2^{m-\kappa}$。
+两个极端最能说明问题：
+
+\begin{itemize}
+
+\item
+  若 $m \le \kappa$：方程组几乎必然唯一解。诚实的 Sender
+  做一次高斯消元，解出 $b$。
+\item
+  若 $m > \kappa$：Sender 也稳赚 $\kappa$ 比特。例如 Sender
+  日后从任何旁路得知 $b$ 的 $m - \kappa$ 个比特，
+  剩下 $\kappa$ 个由方程免费补齐。
+\end{itemize}
+
+\textbf{机制二：恶意 Sender 窥探 $b$。修补：3.2.（2）Fiat-Shamir.}
+
+恶意 Sender 可以亲手设计 $X$。最简单的构造：选定实例编号 $j'$，
+令 $\chi_{j'} \ne 0$，其余分量全零，
+则 $\rho \stackrel{?}{=} 0$ 的真值就是 $b_{j'}$。
+
+这一机制在本章模型内被“假设不存在”，但这种假设缺乏实用性。
+既然问题出在“挑战由 Sender 生成”，那就剥夺 Sender 生成挑战的事权。
+方案是经典的，即 Fiat-Shamir 变换。
+
+\section{进阶版 KOS15}
+\subsection{规格}
+
+输入输出：与 2.1 相同，不再重复。
+
+安全承诺，四项完整兑现：
+
+\begin{itemize}
+
+\item
+  Receiver 不知道 $s$ 和 $M_j^{1-b_j}$，
+\item
+  Sender 不知道 $k_i^{1-s_i}$ 和 $b$。
+\end{itemize}
+
+安全假设：
+
+\begin{itemize}
+
+\item
+  Receiver 恶意，与朴素版相同。
+\item
+  Sender 恶意。但 Sender 的另一类作恶 selective failure
+  在另一篇工作里解决。详见 随机 VOLE。
+\item
+  新增假设：XOF 视为随机谕言机，这是 Fiat-Shamir 的地基。
+\item
+  其余假设（Base OT 来历合规、对称原语可靠）不变。
+\end{itemize}
+
+\subsection{实施}
+
+与朴素版相比只有两处改动:（1）给选择向量 $b$ 追加随机陪跑比特，
+依赖 $b$ 的一应变量的形状都要随之延长.（2）用 Fiat-Shamir 生成挑战。
+
+\subsubsection{Receiver 延长选择向量}
+
+从均匀分布采集 $\kappa+m_2$-bit 串 $\tilde b$（$m_2$ 是统计安全参数），
+令 $b' := b \mathbin{\|} \tilde b$ 取代 $b$。在 Sender 完成检查之前，OT
+实例数 $m$ 临时增加到公开参数 $m' = m + \kappa + m_2$。但 S/R
+双方无需为 $\tilde b$ 生成全密钥，因为相应的消息根本不存在。
+
+\textbf{可迁移的思想 2：陪跑混淆.} 压缩校验自带一个通病：
+验证者有能力解出被压缩信息的一部分。证明者只需引用陪跑混淆，
+就能极大地扩展验证者的解空间，从而使验证者猜不出原像。
+验证者猜到原像的概率详见附录 C。
+
+\subsubsection{Receiver 发送半密钥.}
+
+同（umat），只是 $b$ 换成 $b'$，长度 $m'$：
+\begin{equation}
+\label{eq:02-kos15:12}
+u_{i,*} := t^0_{i,*} \oplus t^1_{i,*} \oplus b'.
+\end{equation}
+
+$t^0, t^1$ 的列数相应地延长到 $m'$。
+
+\subsubsection{双方各自生成挑战.}
+
+朴素版 2.2.（2）的挑战轮被取消，双方各自从 $u$ 算出挑战：
+\begin{equation}
+\label{eq:02-kos15:chal-fs}
+\boldsymbol{\chi} := \mathrm{XOF}\left(\mathtt{sid},\, u\right)
+\in \mathbb{GF}(2^\kappa)^{m'}. \tag{chal-fs}
+\end{equation}
+
+这项改动的妙处不光节约一轮通信，更在于：
+
+\begin{itemize}
+
+\item
+  保住检查的可靠性。Receiver
+  通过改 $u$ 搜索对自己有利的 $\chi$ 在计算上不可行。
+\item
+  保住隐私：$\chi$ 是均匀的，且 Sender 无法指定，进而无法窥探 Receiver
+  的 $b$。
+\end{itemize}
+
+KOS15 原文用的是掷币功能 $\mathcal{F}_{\mathrm{Rand}}$：
+双方共同摇出挑战，谁也无法左右。Fiat-Shamir 是它的工程等价物。
+
+\subsubsection{Receiver 响应挑战.}
+
+同（com-t0）与（com-b）。
+
+\subsubsection{Sender 验证挑战.}
+
+同（qmat）与（verify）。
+
+\subsubsection{Sender 派生密钥，Receiver 解开密文.}
+
+与朴素版 2.2.（5\textasciitilde6）相同，但只对前 $m$ 列执行；
+尾部 $\kappa + m_2$ 列在此丢弃。
+
+\subsection{核对安全承诺}
+
+附录 B 解释了为何 Receiver 得不到 $s$。附录 C 解释了为何 Sender
+得不到 $b$。其余承诺与朴素版一样。
+
+额外讨论一下 $t^0$ 是否泄露。
+
+$\tau$ 向 Sender 额外泄露的 $t^0$ 信息不超过 $\rho$。把（com-t0）
+逐行拆开
+（交换求和次序）：$\tau = \sum_i e_i \cdot \left<\boldsymbol{\chi},\, t^0_{i,*}\right>$。
+对 $s_i = 0$ 的行，
+行像 $\left<\boldsymbol{\chi},\, t^0_{i,*}\right>$ Sender 自己就能算；
+对 $s_i = 1$ 的行，
+行像等于 $\left<\boldsymbol{\chi},\, u_{i,*} \oplus t^1_{i,*}\right> \oplus \rho$。
+合并得 $\tau = \text{已知量} \oplus s \cdot \rho$，只是 $\rho$ 的回声。
+因而 $\tau$ 向 Sender 泄露 $t^0$ 严格归约到泄露 $\rho$。
+
+而对于第三方敌手（Adversary），
+他知道线上信息 $u, \boldsymbol{\chi}, \tau, \rho$。仿照附录 C
+的分析方法可得，在解集里猜中 $t_{*,j}^0$（Receiver 密钥原像）
+的概率等价于盲猜。
+
+Receiver 另有跨会话攻击，不在 KOS15 安全承诺的范围。Receiver 可以给
+（umat）某个 $i$ 注入不一致的 $b^i$，不论协议是否异常终止，都能推断
+Sender $s_{i}$ 的值。在 $\kappa$ 场别有用心的会话以后，Receiver
+就得到了所有的 $s_{i}, i\in[\kappa]$，也就得到了整个 $s$ 向量。
+
+对这种攻击的防御策略是，在外层协议（如 DKLs23）甚至是部署层面执行
+“熔断策略”：任何一方、任何一个等式/不等式校验失败，都需销毁 OT 种子，
+重新执行 Base OT。
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{附录}
+\subsection{Schwartz-Zippel 引理}
+
+\textbf{引理}：设 $P$ 是域 $\mathbb{F}$ 上的非零多项式（可以多变元，
+次数指的是总次数 $\deg P$）。各变元从 $\mathbb{F}$ 中独立均匀抽样，
+则 $P$ 在该随机点取零的概率至多 $\deg P / |\mathbb{F}|$。
+
+通俗说法：非零多项式的零点很稀疏。
+
+经典用途：检测两个多项式是否恒等，
+化归为检测两个多项式在给定随机点的取值是否相等。
+
+用在 2.2.（3）：把第 $j$ 列等式的偏差（$\kappa$-bit 串，视为域元素）
+记为 $\delta_j$，全诚实时 $\delta$ 是零向量。
+压缩后等式的偏差是 $P(\chi_1, \ldots, \chi_m) := \sum_j \delta_j \cdot \chi_j$。
+只要有一列不诚实，即 $\delta \ne 0$，则 $P$ 是非零的一次多项式；由引理，
+随机 $\chi$ 让它取零（即作弊漏网）
+的概率至多 $1 / \left|\mathbb{GF}(2^\kappa)\right| = 2^{-\kappa}$。
+
+\subsection{详细论证 Sender（verify）}
+
+本附录论证（verify）的两个方向：对诚实 Receiver 必然通过，对作弊
+Receiver 至多有约 $2^{-\min(d,\,\kappa-d)}$ 概率通过，$d$ 大致理解为
+“不一致的行数”，本节将给出形式化定义。
+
+\textbf{正方向：诚实 Receiver 必然通过.}
+
+把 IKNP03 OT 扩展（q.i7t）的逐行关系式转成逐列：对诚实 Receiver，
+每列满足
+\begin{equation}
+\label{eq:02-kos15:q-j7t}
+q_{*,j} = t^0_{*,j} \oplus b_j \odot s. \tag{q.j7t}
+\end{equation}
+
+代入（verify）左边。注意 $b_j$ 是单比特标量，可以在域乘法里自由移动：
+\begin{align}
+\sum_j q_{*,j} \cdot \chi_j
+&=
+\sum_j t^0_{*,j} \cdot \chi_j
+\oplus
+\sum_j \left(b_j \odot s\right) \cdot \chi_j \\
+&=
+\tau \oplus \left(\sum_j b_j \cdot \chi_j\right) \cdot s \\
+&=\tau \oplus \rho \cdot s.
+\end{align}
+
+以上推导表明，诚实 Receiver 必然通过验证。
+
+\textbf{反方向：作弊者通过的概率极其渺茫.}
+
+先说破一件事：恶意 Receiver 没有“诚实输入”------ 真 $b$ 并不存在，
+所以（verify）不可能衡量“对真 $b$ 的偏差”。它能衡量的只是 Receiver
+发来的 $u, \tau, \rho$ 的内部自洽性。量尺有两档：
+
+\begin{itemize}
+
+\item
+  绝对锚：种子把 $t^0, t^1$ 钉死，所以“诚实的 $\tau$”客观存在。
+\item
+  相对锚：$\rho$ 是单个域元素，协议强迫 Receiver 只能申报一份。
+  各行没有各自的量尺，只能共同面对这同一份自我申报。
+\end{itemize}
+
+为什么验自洽就够了? 因为如果所有行都与同一个 $b$ 自洽，这个 $b$ 就是
+Receiver 的输入 ------“它是不是真的”这个问题自行消解。作弊的定义不是
+“$b$ 不真”，而是“行与行不一致”。
+
+本节剩余内容由浅入深地刻画上述不一致。
+
+首先我们要明确：无论 Receiver 如何“天马行空”地编造 $u$ 矩阵，在
+Sender 看来，对每个 $u_{i,*}$ 存在唯一的 $m$-bit 串 $b^i$，使得
+\begin{align}
+q_{i,*} &\phantom{:}= t^0_{i,*} \oplus s_i \odot b^{i},
+\\
+b^i &:= u_{i,*} \oplus t^0_{i,*} \oplus t^1_{i,*} ~. \tag{q.ill}
+\end{align}
+
+为什么 $b^i$ 存在且唯一? 因为单变元异或掩码是双射，
+所以 $b^i$ 与 $u_{i,*}$ 一一对应。
+
+然后把（q.ill）逐列改写：$q_{*,j} = t^0_{*,j} \oplus s \odot \beta_j$，
+其中 $\beta_j := \left(b^1_j, \ldots, b^\kappa_j\right)$ 是第 $j$ 列各行选择位拼成的列向量。
+再把按位与拆到行上，$s \odot \beta_j = \sum_i s_i \odot b^i_j \odot e_i$，
+于是（verify）左边打包出
+\begin{equation}
+\label{eq:02-kos15:15}
+\sum_j q_{*,j} \cdot \chi_j
+= \sum_j t^0_{*,j} \cdot \chi_j
+\oplus \sum_i s_i \odot e_i \cdot \left<\boldsymbol{\chi},\, b^i\right>.
+\end{equation}
+
+与 Receiver 实发的 $\tau, \rho$ 代入（verify），整理得通过条件为下式。
+\begin{equation}
+\label{eq:02-kos15:pass}
+e \;\stackrel{?}{=}\; \sum_i s_i \odot \left(e_i \cdot c_i\right). \tag{pass}
+\end{equation}
+
+其中 $c_i$ 是第 $i$ 行相对于 $\rho$ 的偏差，定义为
+\begin{equation}
+\label{eq:02-kos15:17}
+c_i := \left<\boldsymbol{\chi},\, b^i\right> \oplus \rho.
+\end{equation}
+
+而 $e$ 是 $\tau$ 相对于“诚实 $\tau$”（绝对锚）的偏差。
+\begin{equation}
+\label{eq:02-kos15:18}
+e := \tau \oplus \sum_j t^0_{*,j} \cdot \chi_j ~.
+\end{equation}
+
+接下来，任取两行索引 $h, i$。若 $b^h\ne b^i$，则由附录
+A，$\left<\boldsymbol\chi, b^h\oplus b^i\right>=0$ 的概率为 $2^{-\kappa}$。
+定义 $b^{\mathrm{ref}}$ 为出现次数最多的 $b^i$，
+定义 $d$ 为 $b^i\ne b^\mathrm{ref}$ 出现的次数。
+
+下面分析作弊 Receiver 的最优策略。回顾他的时间线：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+
+\item
+  先定 $u$，每行的 $b^i$ 就此钉死；
+\item
+  然后看到 $\boldsymbol{\chi}$；
+\item
+  最后自由选择 $\rho$ 和 $e$。
+\end{enumerate}
+
+他唯一不知道的是 $s$；在他眼里 $s$ 是 $\kappa$ 个独立均匀比特。
+关键观察:（pass）右边是 $s$ 的线性函数。记 $g_i := e_i \cdot c_i$，
+并记 $r$ 为 $\left\{g_i\right\}$ 张成的 $\mathbb{GF}(2)$-线性空间的维数。
+当 $s$ 均匀时，$\sum_i s_i \odot g_i$ 在这个 $2^r$ 大小的空间上均匀分布，
+所以无论 $e$ 怎么选，
+通过概率至多 $2^{-r}$（取到当且仅当 $e$ 落在该空间内）。作弊者的全部余地，
+就是用 $\rho$ 压低 $r$。分两档讨论：
+
+\begin{itemize}
+
+\item
+  押注多数派，
+  即 $\rho = \left<\boldsymbol{\chi},\, b^{\mathrm{ref}}\right>$：
+  多数派行 $c_i = 0$，$g_i = 0$，
+  不进账。$d$ 个少数派行各自有 $c_i \ne 0$（由附录 A，
+  各以 $1 - 2^{-\kappa}$ 概率），
+  且它们的 $g_i$ 以 $\ge 1 - 2^{d-\kappa}$ 的概率线性无关 ------
+  任何非空子集的 $g_i$ 之和都是 $\boldsymbol{\chi}$ 的非零线性型，
+  逐个套附录 A 再取联合界。于是 $r = d$，通过概率 $2^{-d}$。
+  最优的 $e = \sum_{i \in S} g_i$ 对应
+“赌少数派各行的 $s_i$ 恰为子集 $S$ 的示性向量”；通过即赌中，
+  这 $d$ 个比特白送。
+\item
+  不押多数派，
+  即 $\rho \ne \left<\boldsymbol{\chi},\, b^{\mathrm{ref}}\right>$：
+  多数派 $\kappa - d$ 个行获得同一个非零偏差 $c = \left<\boldsymbol{\chi},\, b^{\mathrm{ref}}\right> \oplus \rho$，
+  相应的 $g_i = e_i \cdot c$ 必然线性无关 ------
+  非空子集和为 $\left(\sum_{i \in S} e_i\right) \cdot c \ne 0$，
+  这一步用的正是域乘法无零因子。于是 $r \ge \kappa - d$，
+  通过概率至多 $2^{-(\kappa - d)}$；只要掺假不过半（$d < \kappa/2$），
+  这比上一档更糟。
+\end{itemize}
+
+结论：作弊 Receiver 通过检验的概率至多约 $2^{-\min(d,\,\kappa-d)}$。
+浅掺假（$d \le \kappa/2$）时最优策略就是押注多数派，
+通过概率 $2^{-d}$。通过时，“多数派”$b^{\mathrm{ref}}$ 就被当作
+Receiver 的有效输入；其余赌对 $s_i$ 的行，确实就把 $s_i$ 白送给
+Receiver。这正是 §3.3 跨会话攻击的单场原料。
+
+一笔账外账：本附录只算了“单场通过概率”这一个标的。
+完整的安全证明还要刻画“通过的作弊者到底学到了什么”------
+在打包校验下，那可以是 $s$ 的线性组合，而不限于单个比特 ------
+并保证这些泄露在归约中被正确记账。KOS15 原文正是在这后半段失足，后由
+SoftSpokenOT（Roy，CRYPTO 2022）补齐；协议本身无恙。
+
+\subsection{\texorpdfstring{对随机 $\chi$，验证者猜中 $b$ 的概率}{对随机\textbackslash chi，验证者猜中b的概率}}
+\subsubsection{用古典概型算概率}
+
+以变换 $K: \left\{0,1\right\}^{n_1} \rightarrow \left\{0,1\right\}^{n_2}$，
+布尔矩阵-向量乘法 $y=Kx$ 为例。若 $K$ 服从均匀分布，那么 $K$（几乎）
+是满秩的。假设 $K$ 就是满秩的，
+进而若 $n_1\le n_2$ 则对给定 $y$ 都有唯一 $x$，解法是高斯消元；
+若 $n_1>n_2$ 则 $x$ 的数量有 $2^{n_1-n_2}$ 个。
+验证者想得到 $x$ 的前 $m$ 比特只有靠猜。接下来用古典概型算猜中的概率。
+
+样本空间：给定 $y$，解恰有 $2^{n_1-n_2}$ 个，
+每个解等可能。$x$ 先验均匀，
+观测 $y$ 只是把样本空间从 $\left\{0,1\right\}^{n_1}$ 缩小到解集，
+等可能性原样保留。
+
+把 $x$ 拆成前缀 $x'$（$m$ 比特）与尾巴 $x''$（$n_1 - m$ 比特）。
+相应地，$K$ 拆分成左右两块，分别为 $K'$，形状为 $n_2\times m$；
+以及 $K''$，形状为 $n_2\times (n_1-m)$。
+
+分块乘法给出 $y = Kx = K'x' \oplus K''x''$，移项得
+\begin{equation}
+\label{eq:02-kos15:19}
+K''x'' = y \oplus K'x'.
+\end{equation}
+
+对给定 $x'$ 的解 $x''$ 进行计数。
+这是 $n_1 - m$ 个未知数，$n_2$ 个方程的线性方程组，
+在随机 $K$ 下几乎必然满秩。分两种情况讨论：
+
+\begin{itemize}
+
+\item
+  欠定，即 $n_1 - m \ge n_2$，则每个 $x'$ 恰有 $2^{n_1-n_2-m}$ 个解。
+  进而指定的前缀也有这么多解。
+  此时待求概率为 $2^{n_1-n_2-m}/2^{n_1-n_2}$$=1/2^m$。
+\item
+  超定，即 $n_1 - m < n_2$，则每个 $x'$ 至多一个解。
+  恰有 $2^{n_1-n_2}$ 个 $x'$ 有解。待求概率就是指定前缀有解的概率，
+  即 $1/2^{n_1-n_2}$。
+\end{itemize}
+
+为什么超定情况恰有 $2^{n_1-n_2}$ 个解?$y$ 由真实的 $x$ 生成，
+所以至少有一个解 $x_0$，而解集就是陪集 $x_0 \oplus \ker K$。
+由秩-零化度定理，$\dim \ker K = n_1 - \mathrm{rank}\, K = n_1 - n_2$，
+故解集大小恒为 $2^{n_1-n_2}$。
+
+两种情况合并：
+\begin{equation}
+\label{eq:02-kos15:20}
+\Pr\left[\text{猜中前 } m \text{ 比特}\right] = 2^{-\min(m,\, n_1-n_2)} \le 1.
+\end{equation}
+
+综上，引入陪跑比特，本质上是在把猜中前缀的概率推向“欠定”这一边。
+
+\subsubsection{过于吝啬的陪跑长度会破坏满秩假设}
+
+追问：令 $\ell =n_1-m$。当 $\ell \ge n_2$ 时，
+猜中概率似乎与陪跑向量的长短无关。但推导有意滑坡，假设了 $K$ 满秩。
+如果陪跑向量太短（比如刚好取到 $n_2$，对应正文的 $\kappa$）会怎么样?
+
+TLDR：$\ell$ 超过 $n_2$ 的部分是在维护满秩假设的可信度。
+
+真命题：
+矩阵 $K''$ 不满秩当且仅当存在非零向量 $w$ 使得 $w^\intercal K'' = 0$。
+
+概率分两层算。对\textbf{给定}的非零 $w$，事件
+“$w^\intercal K'' = 0$”的概率是 $1/2^{\ell}$。而“不满秩”
+是对全体非零 $w$ 取并集的事件，候选 $w$ 不足 $2^{n_2}$ 个，由联合界得
+\begin{equation}
+\label{eq:02-kos15:21}
+\Pr\left[K'' \text{ 不满秩}\right] < 2^{n_2} \cdot 2^{-\ell} = 2^{-(\ell - n_2)}.
+\end{equation}
+
+超出量 $\ell - n_2$ 正是正文 3.2.（0）的统计安全参数 $m_2$。
+
+若矩阵不满秩，设行秩为 $r$，则有 $r<n_2$。
+则 $K''x''$ 只是 $r$ 维子空间，进而使一部分 $x'$ 被排除，
+从而违背均匀性假设。最多泄露 $n_2-r$ 比特。
+
+\subsection{运算规则}
+
+本篇用到三种乘性运算与一个内积，运算规则备齐如下。
+
+\subsubsection{\texorpdfstring{“$\oplus$”按位异或}{“\textbackslash oplus”按位异或}}
+
+单位元：全 0 比特串。
+
+逆元：任何元素的逆元是其自身，即 $a\oplus a = 0$。该性质称为
+“自逆性”。这意味着加法就是减法，移项不变号。
+
+运算律：交换，结合。
+
+\subsubsection{\texorpdfstring{“$\odot$”按位与}{“\textbackslash odot”按位与}}
+
+单位元：全 1 比特串。
+
+幂等性：即 $a\odot a = a$。
+
+运算律：交换，结合。对“$\oplus$”分配，
+即 $a \odot (b \oplus c) = a \odot b \oplus a \odot c$。
+
+有零因子，例如 $01 \odot 10 = 00$，因而不可约分/消去。
+
+\subsubsection{\texorpdfstring{“$\,\cdot\,$”$\mathbb{GF}(2^{\kappa})$ 上的域乘法}{“\textbackslash，\textbackslash cdot\textbackslash，”\textbackslash mathbb\{GF\}（2\^{}\{\textbackslash kappa\}）上的域乘法}}
+
+零元：全 0 比特串。幺元：全 1 比特串。
+
+逆元：非零元均可逆。
+
+运算律：交换，结合，对“$\oplus$”分配。
+
+无零因子，即 $a\cdot b = 0$ 当且仅当 $a=0$ 或 $b=0$，因而可以约分/消去。
+
+单比特 $b$ 混合结合律：
+单比特 $b$ 既可以当 $\odot$ 的标量也可当 $\cdot$ 的常数，两种用法一致，
+可自由移动，
+即 $\left(b \odot x\right) \cdot y = b \odot \left(x \cdot y\right)$。
+
+一般 $\kappa$-bit 串的混合结合律：
+不行，$(a\odot x) \cdot y \ne a \odot (x\cdot y)$。
+
+\begin{itemize}
+
+\item
+  从左到右：
+  先把 $\odot$ 拆开，$a \odot x = \sum_i a_i \odot x_i \odot e_i$，再用
+“$\cdot$”对“$\oplus$”的分配律，得
+\end{itemize}
+\begin{equation}
+\label{eq:02-kos15:22}
+\left(a \odot x\right) \cdot y = \sum_i \left(a_i \odot x_i\right) \odot \left(e_i \cdot y\right).
+\end{equation}
+
+即 $\kappa$ 个域乘积 $e_i \cdot y$ 的开关和，
+开关是单比特 $a_i \odot x_i$，由混合结合律自由移动。附录 B
+处理 $s \odot \beta_j$ 用的就是这一招。* 从右到左：掩码只能挡在乘积外面，
+对乘积结果逐位拆，
+\begin{equation}
+\label{eq:02-kos15:23}
+a \odot \left(x \cdot y\right) = \sum_i a_i \odot \left(x \cdot y\right)_i \odot e_i,
+\end{equation}
+
+其中 $\left(x \cdot y\right)_i$ 是乘积的第 $i$ 位系数。
+它不能进一步下放到 $x, y$ 的单个位上，因为域乘法是“卷积 + 模约减”，
+每个输出位一般依赖 $x, y$ 的所有位。
+
+两式不等的根源一句话：$\odot$ 是逐位算符，“$\cdot$”把各位搅在一起；
+“先掩码再搅拌”与“先搅拌再掩码”，落点不同。
+
+\subsubsection{\texorpdfstring{“$\left<x, y\right>$”内积}{“\textbackslash left\textless x，y\textbackslash right\textgreater”内积}}
+
+内积 $\left<x,\, y\right> := \sum_i x_i \odot y_i$ 的运算律，
+由上述逐项性质直接继承：
+
+\begin{itemize}
+
+\item
+  对称性。
+\item
+  双线性：$\left<x,\, y \oplus z\right> = \left<x,\, y\right> \oplus \left<x,\, z\right>$。
+\item
+  单比特系数：$\left<x,\, b \odot y\right> = b \odot \left<x,\, y\right>$。
+\end{itemize}

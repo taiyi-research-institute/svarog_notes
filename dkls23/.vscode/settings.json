@@ -1,4 +1,24 @@
 {
-    "notebook.globalToolbar": false,
-    "notebook.insertToolbarLocation": "hidden",
+  // Ctrl+S 自动构建: 保存哪个片段就编哪个成同名 PDF, 辅助文件全进 _build/.
+  // 片段顶部有 magic comment `% !TEX root = <stem>.tex` 让 LaTeX Workshop 把
+  // 当前编辑的片段当 root (否则它只认含 \documentclass 的 main.tex, 永远编 main).
+  // recipe 走 build-note.sh → make <stem>: Makefile 在 _build/ 编译 (aux/log/xdv
+  // 落现场), PDF 移到 pdf/<stem>.pdf. main.tex 保存时 wrapper 从其 \input 行提取笔记.
+  "latex-workshop.latex.tools": [
+    {
+      "name": "make-note",
+      "command": "/home/wenke/svarog_notes/dkls23/.vscode/build-note.sh",
+      "args": ["%DOCFILE%"]
+    }
+  ],
+  "latex-workshop.latex.recipes": [
+    {
+      "name": "make-note",
+      "tools": ["make-note"]
+    }
+  ],
+  // 预览定位到 pdf/<stem>.pdf (make 的产物位置)
+  "latex-workshop.latex.outDir": "pdf/",
+  // PDF 预览反色(深色模式): 0=白底, 1=完全反色. 纯文字+公式的笔记反色效果干净.
+  "latex-workshop.view.pdf.invert": 0.8
 }

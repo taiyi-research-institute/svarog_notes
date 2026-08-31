@@ -29,47 +29,45 @@ s := w / u;
 return R, s;
 ```
 
-### pp7 sec1.2 "secret shares $w$"
+### pp7 sec1.2 "secret shares$w$"
 
-原句: The computation of secret shares of $w$ can be performed locally by the parties given shares $\phi$ and $v = \mathtt{sk}\cdot\phi$.
+原句: The computation of secret shares of$w$can be performed locally by the parties given shares$\phi$and$v = \mathtt{sk}\cdot\phi$.
 
-这句话的意思是, 在各方已经摇出 $\phi$ 的加法分片以及算出 $v$ 的加法分片后, 各方就可以本地合成 $w$ 的加法分片. 原理如下式:
+这句话的意思是, 在各方已经摇出$\phi$的加法分片以及算出$v$的加法分片后, 各方就可以本地合成$w$的加法分片. 原理如下式:
 
 $$
-
 \begin{aligned}
 w &= (a+\mathtt{sk}\cdot b)\phi \\
 &= a\phi + b\cdot \mathtt{sk}\cdot \phi \\
 &= a\phi + bv.
 \end{aligned}
-
 $$
 
-### pp7 sec1.2 "$v$ and $u$ are computed ideally"
+### pp7 sec1.2 "$v$and$u$are computed ideally"
 
-原句: Assuming that shares of the two products $v$ and $u$ are computed ideally ...
+原句: Assuming that shares of the two products$v$and$u$are computed ideally ...
 
-这句话的的意思是, 计算 $u$ 和 $v$ 的加法分片需要用到 MtA 协议.
-其中, $u = r\phi$, $v = \mathtt{sk}\cdot\phi$.
+这句话的的意思是, 计算$u$和$v$的加法分片需要用到 MtA 协议.
+其中,$u = r\phi$,$v = \mathtt{sk}\cdot\phi$.
 
 ### pp7,8 sec1.2 "a few avenues to cheat"
 
 假设 MtA 本身安全, 敌手还能靠什么歪门邪道搞破坏? 只有以下四条路:
 
-(1) 有偏的 nonce. 如果某个敌手能看到别人的 $r_i$ 分片, 适应性地调整自己的 $r_i$, 就能操纵最终 $R$ 的分布. 进而通过格攻击等手段泄露私钥.
+(1) 有偏的 nonce. 如果某个敌手能看到别人的$r_i$分片, 适应性地调整自己的$r_i$, 就能操纵最终$R$的分布. 进而通过格攻击等手段泄露私钥.
 
-防御: commit-then-reveal. 各方先各自采样 $r_i$, 为相应的 $R_i$ 发布承诺. 等所有人都承诺完了再一起解承诺. 只要 $r$ 在承诺阶段结束前是信息论隐藏的, 敌手就不可能让自己的 $R_j$ 依赖诚实方的 $R_i$.
+防御: commit-then-reveal. 各方先各自采样$r_i$, 为相应的$R_i$发布承诺. 等所有人都承诺完了再一起解承诺. 只要$r$在承诺阶段结束前是信息论隐藏的, 敌手就不可能让自己的$R_j$依赖诚实方的$R_i$.
 
-(2) $v$ 和 $u$ 使用不一致的 $\phi$. 如果某个敌手使用不一致的 $\phi_j$, 那么会导致验签失败.
+(2)$v$和$u$使用不一致的$\phi$. 如果某个敌手使用不一致的$\phi_j$, 那么会导致验签失败.
 
-防御: 不设置检查, 而是从结构上消灭使用两个 $\phi$ 的机会. 详见本文 Vector OLE 相关内容.
+防御: 不设置检查, 而是从结构上消灭使用两个$\phi$的机会. 详见本文 Vector OLE 相关内容.
 
-(3) 使用不一致的 $\mathtt{sk}_i$ 或 $r_i$. 如果某个敌手使用的 $\mathtt{sk}_j$ 或 $r_j$ 与公开承诺不一致, 那么验签失败.
+(3) 使用不一致的$\mathtt{sk}_i$或$r_i$. 如果某个敌手使用的$\mathtt{sk}_j$或$r_j$与公开承诺不一致, 那么验签失败.
 
-防御: 利用 $\phi_i$ 作为顺带的 MAC key. 具体来说, MtA 算出的 $r_j \cdot \phi_i$ 顺带就是
-"以 $\phi_i$ 为密钥, 给 $r_j$ 打的 MAC". 验证挪到曲线上做.
+防御: 利用$\phi_i$作为顺带的 MAC key. 具体来说, MtA 算出的$r_j \cdot \phi_i$顺带就是
+"以$\phi_i$为密钥, 给$r_j$打的 MAC". 验证挪到曲线上做.
 
-(4) 直接篡改 $v$, $u$. 后果是验签失败.
+(4) 直接篡改$v$,$u$. 后果是验签失败.
 
 防御: 因为协议跑到这里已经快要结束, 所以交给验签去拦截.
 
@@ -85,24 +83,24 @@ $$
 
 ### 什么是 MAC
 
-MAC = Message Authentication Code. 假设 Alice 和 Bob 共享一个只有他俩知道的密钥 $k$.
-Alice 想发一条消息 $m$, 又怕被篡改, 于是她算一个标签 $t := \mathrm{Hash}(k, m)$, 把 $m, t$ 一起发给 Bob.
-然后 Bob 重放 $t$, 看跟收到的 $t$ 是否一致.
+MAC = Message Authentication Code. 假设 Alice 和 Bob 共享一个只有他俩知道的密钥$k$.
+Alice 想发一条消息$m$, 又怕被篡改, 于是她算一个标签$t := \mathrm{Hash}(k, m)$, 把$m, t$一起发给 Bob.
+然后 Bob 重放$t$, 看跟收到的$t$是否一致.
 
 ### pp11 sec2.2 "malicious PPT adversary"
 
-原句: We consider a malicious PPT adversary who can statically corrupt up to $t − 1$ parties.
+原句: We consider a malicious PPT adversary who can statically corrupt up to$t - 1$parties.
 
 我的疑问: corrupted parties 腐化或诚实取决于他们的自由意志. 他们或许可以把责任推给一个 adversary, 但 adversary 为什么是 PPT 的? 这让我觉得无厘头, 就好像说一位肇事司机是 PPT.
 
-PPT adversary $\mathcal{A}$ 是 "所有被腐化方合谋能干的坏事" 的数学代号.
+PPT adversary$\mathcal{A}$是 "所有被腐化方合谋能干的坏事" 的数学代号.
 
 原句的每一个定(状)语都有明确的意图:
 * malicious.  坏人能不能任意偏离协议, 乱发消息? 能.
 * PPT.  坏人算力有多强? Probabilistic polynomial-time.
 * statically.  坏人什么时候决定拉拢谁? 协议开始前定好, 中途既不反悔, 也不追加.
-* up to $t-1$.  坏人最多能拉拢多少人? 不超过 $t-1$ 人.
-* 单一的 $\mathcal{A}$.  坏人之间能不能互相通气? 能, 而且安全证明要覆盖最大限度的协同作案.
+* up to$t-1$.  坏人最多能拉拢多少人? 不超过$t-1$人.
+* 单一的$\mathcal{A}$.  坏人之间能不能互相通气? 能, 而且安全证明要覆盖最大限度的协同作案.
 
 类比肇事司机的例子. 司机的意志/策略空间是无限自由的 (定语 malicious). 但他的车最快只能跑200码 (定语 PPT). 虽然司机的策略空间是无限自由的, 但为了方便分析, 我们追加假设司机一旦动手就不收手 (状语 statically).
 
@@ -131,9 +129,9 @@ UC 框架换了个思路. 不列清单, 而是虚构一个绝对靠谱的第三�
 我能理解, 对于诚实参与方来说, 理想功能很像接口 / 虚函数.
 但我不理解, 凭什么敌手 S 只能运用有限的接口?
 
-实际上, 理想功能并没有限制现实世界的坏蛋 $\mathcal{A}$, 而是在做一个数学断言:
+实际上, 理想功能并没有限制现实世界的坏蛋$\mathcal{A}$, 而是在做一个数学断言:
 
-💬 不管 $\mathcal{A}$ 在现实里有多离谱, 捣乱方法多么天马行空, 它给诚实方造成的后果总能被归类为几个有限的命令, 不多不少.
+ 不管$\mathcal{A}$在现实里有多离谱, 捣乱方法多么天马行空, 它给诚实方造成的后果总能被归类为几个有限的命令, 不多不少.
 
 UC 证明并不是彰显协议固若金汤的证书. 它实际上把 "协议安全吗" 这个模糊的问题, 严格地拆分为两块 (三块) 边界分明的责任:
 1. 协议逻辑安全吗? 由论文的数学证明来保证. 一旦证完, 几乎不可能是事故来源.
@@ -144,17 +142,17 @@ UC 框架还需要 Hybrid 证明, 它的职责是证明 "真实协议+$\mathcal{
 
 (1) 谁跟谁无法区分?
 
-环境 $\mathcal{Z}$ 与 (真实协议 + $\mathcal{A}$) 的交互输出, 
-与 $\mathcal{Z}$ 与 (理想功能 + $\mathcal{S}$) 的交互输出,
+环境$\mathcal{Z}$与 (真实协议 +$\mathcal{A}$) 的交互输出, 
+与$\mathcal{Z}$与 (理想功能 +$\mathcal{S}$) 的交互输出,
 这两个交互输出无法区分.
 
-$\mathcal{Z}$ 没有具体的内在结构, 它就是 "任意一台交互式图灵机".
+$\mathcal{Z}$没有具体的内在结构, 它就是 "任意一台交互式图灵机".
 研究者如果追求计算安全, 那就限定它的算力为 PPT. 如果追求统计安全, 则可以无界.
 
-既然 $\mathcal{Z}$ 是 "任意的", 那么我们只能规定它的接口清单:
+既然$\mathcal{Z}$是 "任意的", 那么我们只能规定它的接口清单:
 1. 给诚实方写输入: 如选哪条消息签名, 选哪个门限, 何时调 Setup (keygen), 何时调 Sign. 而且可以在交互途中自适应地选.
 2. 从诚实方读输出: 如公钥, 签名, abort 信号.
-3. 与敌手自由通信. $\mathcal{Z}$ 通过
+3. 与敌手自由通信.$\mathcal{Z}$通过
 
 (2) 为什么要无法区分?
 TODO
