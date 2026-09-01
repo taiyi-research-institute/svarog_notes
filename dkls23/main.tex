@@ -90,6 +90,23 @@
 \usepackage{hyperref}
 \hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
 
+% --- 智能引用 cleveref: \cref{a,b,c} 自动连多个引用 + 类型前缀 ---
+%     必须最后加载 (hyperref 之后), \cref 才能生成可点击链接。
+\usepackage{cleveref}
+\crefname{equation}{公式}{公式}
+\Crefname{equation}{公式}{公式}
+\crefname{section}{节}{节}
+\Crefname{section}{节}{节}
+\crefname{subsection}{节}{节}
+\Crefname{subsection}{节}{节}
+% 多引用连接词 (默认英文 and/,): 两个→" 和 ", 三个→"、... 和 ..."
+% 注意: 这些命令 cleveref 在 \AtBeginDocument 才定义, 这里要用 \newcommand 预定义
+% (cleveref 检测到已定义就会保留, \renewcommand 会因"尚未定义"报错)
+\newcommand{\crefpairconjunction}{ 和 }
+\newcommand{\crefmiddleconjunction}{、}
+\newcommand{\creflastconjunction}{ 和 }
+\newcommand{\crefrangeconjunction}{ 至 }
+
 % ==================== 每篇笔记改这里 ====================
 % 标题由 Makefile 从片段的 "% title: ..." 注释注入到 \doctitle (见 template/wrap.py)。
 % 中英文都走黑体 (\heiti 中文 / \heitiLatin 西文), \mdseries 抵消默认粗体。

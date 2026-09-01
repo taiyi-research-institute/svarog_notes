@@ -16,8 +16,7 @@ ECDSA签名步骤如下：
 那就泄露了 $k$，从而泄露私钥。因此需要对 $s$ 进行变形。
 
 设非 0 随机数 $\gamma$。则
-\begin{equation}
-\label{eq:00-mta-baseot:1}
+\begin{equation}\label{eq:00-mta-baseot:1}
 s = (k\gamma)^{-1}(m\gamma + \mathtt{sk}\cdot h\gamma).
 \end{equation}
 
@@ -32,8 +31,7 @@ s = (k\gamma)^{-1}(m\gamma + \mathtt{sk}\cdot h\gamma).
 然后，对于有序的一对参与方 $(i, j)$，（这里 $i, j$ 遍历所有参与方），
 我们假设存在 MtA 协议，使得参与方 $i$ 得到秘密 $a_{i,j}$，
 参与方 $j$ 得到秘密 $b_{i,j}$。协议的理想功能可以简述为下式：
-\begin{equation}
-\label{eq:00-mta-baseot:mta}
+\begin{equation}\label{eq:00-mta-baseot:mta}
 a_{i,j}+b_{i,j}:=k_j\gamma_i. \tag{mta}
 \end{equation}
 
@@ -53,15 +51,13 @@ MtA 理想功能只是算出了 $a,b$ 秘密份额。
 首先，对每个参与方 $i$，
 他持有与其他 $j\ne i$ 生成的份额 $a_{i,j}$，$b_{j,i}$（注意不是 $b_{i,j}$），
 以及本地份额 $a_{i,i}$，$b_{i,i}$。他计算 $\sigma_i$ 如下式。
-\begin{equation}
-\label{eq:00-mta-baseot:ex1}
+\begin{equation}\label{eq:00-mta-baseot:ex1}
 \sigma_i = \sum_j (a_{i,j}+b_{j,i}). \tag{ex1}
 \end{equation}
 
 然后，参与方 $i$ 与所有参与方明文交换 $\sigma_j$，
 求和得到 $k\gamma$ 如下式。各方如果诚实，必然得到相同的 $k\gamma$。
-\begin{equation}
-\label{eq:00-mta-baseot:ex2}
+\begin{equation}\label{eq:00-mta-baseot:ex2}
 k\gamma  = \sum_j \sigma_j. \tag{ex2}
 \end{equation}
 
@@ -69,8 +65,7 @@ k\gamma  = \sum_j \sigma_j. \tag{ex2}
 这保证了具体的 $a, b$ 份额不会泄露。
 
 验算一下公式（mta，ex1，ex2）的正确性。
-\begin{align}
-\phantom{{}={}}\sum_{i,j} (a_{i,j}+b_{i,j})
+\begin{align}\phantom{{}={}}\sum_{i,j} (a_{i,j}+b_{i,j})
 &=\sum_{i}(a_{i,i}+b_{i,i})\,+\,\sum_{j\ne i}(a_{i,j}+b_{i,j}) \\
 &=\sum_i k_i\gamma_i \,+\, \sum_{j\ne i}k_j\gamma_i \\
 &=\sum_{i,j}k_j\gamma_i \\
@@ -84,8 +79,7 @@ k\gamma  = \sum_j \sigma_j. \tag{ex2}
 今有 Sender，Receiver 两参与方，
 分别持有秘密值 $x_a \bmod n$，$x_b \bmod n$。
 他们要得到另外的秘密值 $y_a, y_b$，使得
-\begin{equation}
-\label{eq:00-mta-baseot:5}
+\begin{equation}\label{eq:00-mta-baseot:5}
 y_a + y_b:=x_a x_b \pmod n.
 \end{equation}
 
@@ -99,8 +93,7 @@ OT = Oblivious Transfer，翻译为“不经意传输”。至于朴素在哪，
 输入：Sender 的 $x_a$，Receiver 的 $x_b$。
 
 输出：Sender 的 $y_a$，Receiver 的 $y_b$，满足
-\begin{equation}
-\label{eq:00-mta-baseot:6}
+\begin{equation}\label{eq:00-mta-baseot:6}
 y_a+y_b:=x_ax_b \pmod n.
 \end{equation}
 
@@ -142,8 +135,7 @@ y_a+y_b:=x_ax_b \pmod n.
 \item
   Receiver 获取 $x_b$ 的二进制表示，记为
 \end{enumerate}
-\begin{equation}
-\label{eq:00-mta-baseot:deco-repr}
+\begin{equation}\label{eq:00-mta-baseot:deco-repr}
 \sum_{t=0}^{\ell-1} d_t2^t ~=~ x_b. \tag{deco-repr}
 \end{equation}
 
@@ -154,8 +146,7 @@ y_a+y_b:=x_ax_b \pmod n.
   Sender 对每个 $t$，摇随机秘密 $r_t\leftarrow \mathbb{Z}_n$。
   生成如下两条消息。
 \end{enumerate}
-\begin{align}
-m_{t,0}&:=r_t \\
+\begin{align}m_{t,0}&:=r_t \\
 m_{t,1}&:=r_t+x_a2^t \bmod n. \tag{deco-msg}
 \end{align}
 
@@ -167,8 +158,7 @@ m_{t,1}&:=r_t+x_a2^t \bmod n. \tag{deco-msg}
   对每个 $t$，双方执行一次二选一 OT 协议（下一节会讲）。之后，Receiver
   得到 $m_{t,d_t}$ 如下式。
 \end{enumerate}
-\begin{equation}
-\label{eq:00-mta-baseot:deco-md}
+\begin{equation}\label{eq:00-mta-baseot:deco-md}
 m_{t,d_t}:=r_t + d_tx_a2^t \bmod n. \tag{deco-md}
 \end{equation}
 
@@ -179,14 +169,12 @@ m_{t,d_t}:=r_t + d_tx_a2^t \bmod n. \tag{deco-md}
 \item
   Sender 和 Receiver计算各自的本地份额
 \end{enumerate}
-\begin{align}
-y_a&:=-\sum_t m_{t,0} \bmod n; \\
+\begin{align}y_a&:=-\sum_t m_{t,0} \bmod n; \\
 y_b&:=\sum_t m_{t,d_t} \bmod n. \tag{deco-out}
 \end{align}
 
 位分解协议至此结束。验算一下。
-\begin{align}
-y_b&=\sum_t\left( r_t + d_tx_a2^t \right) \\
+\begin{align}y_b&=\sum_t\left( r_t + d_tx_a2^t \right) \\
 &=\sum_t r_t + x_a \sum_t d_t2^t \\
 &=-y_a+x_a x_b.
 \end{align}
@@ -225,8 +213,7 @@ y_b&=\sum_t\left( r_t + d_tx_a2^t \right) \\
   Sender 摇随机数 $\alpha \leftarrow \mathbb{Z}_n^*$。计算下式，发给
   Receiver。
 \end{enumerate}
-\begin{equation}
-\label{eq:00-mta-baseot:ot-acom}
+\begin{equation}\label{eq:00-mta-baseot:ot-acom}
 A:=\alpha G. \tag{ot-acom}
 \end{equation}
 
@@ -238,8 +225,7 @@ A:=\alpha G. \tag{ot-acom}
   Receiver 摇随机数 $\beta \leftarrow \mathbb{Z}_n^*$。计算下式，发给
   Sender。虽然公式里已经体现出来，但还是要强调，只发所选的那一个。
 \end{enumerate}
-\begin{equation}
-\label{eq:00-mta-baseot:ot-bcom}
+\begin{equation}\label{eq:00-mta-baseot:ot-bcom}
 B:=\begin{cases}
 \beta G & \textrm{if~} d=0, \\
 \beta G+A & \textrm{if~} d=1.
@@ -256,14 +242,12 @@ B:=\begin{cases}
 \item
   Sender 计算两个密钥
 \end{enumerate}
-\begin{align}
-K_0 &:= \mathrm{Hash}(\alpha B), \\
+\begin{align}K_0 &:= \mathrm{Hash}(\alpha B), \\
 K_1 &:= \mathrm{Hash}(\alpha(B-A)). \tag{ot-keys}
 \end{align}
 
 Sender 计算如下两个对称加密的密文，发给 Receiver。
-\begin{align}
-C_0 &:= \mathrm{Enc}(K_0, m_0), \\
+\begin{align}C_0 &:= \mathrm{Enc}(K_0, m_0), \\
 C_1 &:= \mathrm{Enc}(K_1, m_1). \tag{ot-cts}
 \end{align}
 
@@ -274,22 +258,19 @@ C_1 &:= \mathrm{Enc}(K_1, m_1). \tag{ot-cts}
 \item
   Receiver 计算一个密钥。
 \end{enumerate}
-\begin{equation}
-\label{eq:00-mta-baseot:11}
+\begin{equation}\label{eq:00-mta-baseot:11}
 K_d:=\mathrm{Hash}(\beta A).
 \end{equation}
 
 用这个密钥解开 $C_d$ 得到 $m_d$，解不开 $C_{1-d}$。协议至此结束。
 
 （小结）实际上，在 $d=0$ 时，
-\begin{equation}
-\label{eq:00-mta-baseot:12}
+\begin{equation}\label{eq:00-mta-baseot:12}
 K_0=\mathrm{Hash}(\alpha \beta G), K_1=\mathrm{Hash}(\alpha\beta G - \alpha^2 G).
 \end{equation}
 
 而在 $d=1$ 时，
-\begin{equation}
-\label{eq:00-mta-baseot:13}
+\begin{equation}\label{eq:00-mta-baseot:13}
 K_0=\mathrm{Hash}(\alpha\beta G + \alpha^2 G), K_1=\mathrm{Hash}(\alpha\beta G).
 \end{equation}
 
@@ -337,8 +318,7 @@ VOLE 末尾的讨论“Keygen 真正摊销的是什么”。
 本章协议处处信任对方遵守协议规则。一个典型攻击：恶意 Sender
 在第 $t^*$ 位用 $x_a'\ne x_a$ 构造（deco-msg），其余位诚实。
 则两份额之和变成
-\begin{equation}
-\label{eq:00-mta-baseot:14}
+\begin{equation}\label{eq:00-mta-baseot:14}
 y_a+y_b=x_ax_b+d_{t^*}(x_a'-x_a)2^{t^*}.
 \end{equation}
 

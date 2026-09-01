@@ -99,15 +99,29 @@ def fix_sections(text):
 
 
 # ---------------------------------------------------------------- 规则(2)
+DISPLAY_ENV_RE = re.compile(
+    r'(\s*\\begin\{(equation|align|align\*|gather|multline)\})(.*?)(\\end\{\2\})',
+    re.DOTALL,
+)
+
+
 def fix_display_blank(text):
+    # 2a. 删 \begin{...} 前的空行 (渲染浪费空间)
     lines = text.split('\n')
     out = []
-    begin_re = re.compile(r'[ \t]*\\begin\{(equation|align)\}')
+    begin_re = re.compile(r'[ \t]*\\begin\{(equation|align|align\*|gather|multline)\}')
     for line in lines:
         if begin_re.match(line) and out and out[-1].strip() == '':
             out.pop()
         out.append(line)
-    return '\n'.join(out)
+    text = '\n'.join(out)
+    # 2b. 删数学环境内部真正为空的行 (空行 = \par, 在 math env 里是致命错误
+    #     "Paragraph ended before ... was complete"), 但保留 \end 前的换行
+    #     → \end{equation}/\end{align} 始终独立成行, 不接到内容行尾。
+    def strip_env(m):
+        body_lines = [l for l in m.group(3).split('\n') if l.strip() != '']
+        return m.group(1) + '\n'.join(body_lines) + '\n' + m.group(4)
+    return DISPLAY_ENV_RE.sub(strip_env, text)
 
 
 # ---------------------------------------------------------------- 规则(1)

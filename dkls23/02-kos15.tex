@@ -20,16 +20,14 @@ abort。
 \section{IKNP Sender 的问题}
 
 在 IKNP 里，Sender 对 Receiver 发来的校正矩阵 $u$ 是照单全收的。他计算
-\begin{equation}
-\label{eq:02-kos15:1}
+\begin{equation}\label{eq:02-kos15:1}
 q_{i,*} = F\left(\mathtt{sid},\,\mathtt{tag},\,k^{s_i}_i\right) \oplus \left(s_i \odot u_{i,*}\right),
 \end{equation}
 
 并信任“$u$ 里每一行都编码了同一个选择向量 $b$”。
 
 但恶意 Receiver 可以对每行 $i$ 用不同的 $b^{i}$ 来构造 $u$：
-\begin{equation}
-\label{eq:02-kos15:2}
+\begin{equation}\label{eq:02-kos15:2}
 u_{i,*} = t^0_{i,*} \oplus t^1_{i,*} \oplus b^{i}.
 \end{equation}
 
@@ -38,8 +36,7 @@ u_{i,*} = t^0_{i,*} \oplus t^1_{i,*} \oplus b^{i}.
 Receiver 对 $b$ 矩阵（共 $\kappa$ 行，每行是一个长度 $m$ 的选择向量）
 进行这样的加工：选定某第 $j$ 个 OT 实例，选定 $h\in[\kappa]$，
 令整个 $b$ 矩阵只有第 $(h, j)$ 个元素为 1，其余全 0。于是第 $j$ 列有
-\begin{equation}
-\label{eq:02-kos15:3}
+\begin{equation}\label{eq:02-kos15:3}
 q_{*,j} = t^0_{*,j} \oplus \left(s \odot e_{h}\right),
 \end{equation}
 
@@ -69,8 +66,7 @@ Receiver 收到密文后用两个候选密钥各解密一次，能解出有意�
 \subsection{Receiver 解开两条消息}
 
 Receiver 得到 $s$ 之后，对任意 OT 实例 $j$，均可算出两把密钥：
-\begin{align}
-K^0_j &= \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,t^0_{*,j}\right),
+\begin{align}K^0_j &= \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,t^0_{*,j}\right),
 \\
 K^1_j &= \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,t^0_{*,j} \oplus s\right).
 \end{align}
@@ -139,8 +135,7 @@ Receiver 持有 $\kappa$ 对种子 $\left(k^0_i,\, k^1_i\right)$，Sender
 \subsubsection{Receiver 发送半密钥}
 
 Receiver 计算半密钥并发给 Sender，同 IKNP03 OT 扩展（umat）。
-\begin{equation}
-\label{eq:02-kos15:umat}
+\begin{equation}\label{eq:02-kos15:umat}
 u_{i,*} := t^0_{i,*} \oplus t^1_{i,*} \oplus b, \tag{umat}
 \end{equation}
 
@@ -152,8 +147,7 @@ IKNP 确立了 $u$ 是半密钥的地位。KOS 引入挑战-响应机制，
 \subsubsection{Sender 发起随机挑战}
 
 Sender 生成如下随机挑战向量发给 Receiver，
-\begin{equation}
-\label{eq:02-kos15:chal}
+\begin{equation}\label{eq:02-kos15:chal}
 \boldsymbol{\chi} = \left(\chi_1, \ldots, \chi_m\right)
 \in \mathbb{GF}(2^\kappa)^m. \tag{chal}
 \end{equation}
@@ -172,15 +166,13 @@ Sender 生成如下随机挑战向量发给 Receiver，
 
 Receiver 把 $t^0$ 的各列视为域元素，以挑战为权重，
 把整张矩阵打包成单个域元素：
-\begin{equation}
-\label{eq:02-kos15:com-t0}
+\begin{equation}\label{eq:02-kos15:com-t0}
 \tau := \sum_{j=1}^{m} t^0_{*,j} \cdot \chi_j ~, \tag{com-t0}
 \end{equation}
 
 式中“$\cdot$”是 $\mathbb{GF}(2^\kappa)$ 乘法。类似地，Receiver
 为 $b$ 打包出
-\begin{equation}
-\label{eq:02-kos15:com-b}
+\begin{equation}\label{eq:02-kos15:com-b}
 \rho := \left<\boldsymbol{\chi},\, b\right>
 =\sum_{j=1}^{m} b_j \odot \chi_j ~. \tag{com-b}
 \end{equation}
@@ -206,14 +198,12 @@ Schwartz-Zippel 引理，详见附录 A。
 \subsubsection{Sender 验证挑战}
 
 Sender 计算全密钥原像，与 IKNP03 OT 扩展（qmat）相同：
-\begin{equation}
-\label{eq:02-kos15:qmat}
+\begin{equation}\label{eq:02-kos15:qmat}
 q_{i,*} := t_{i,*}^{s_i} \oplus s_i \odot u_{i,*}. \tag{qmat}
 \end{equation}
 
 Sender 把 $q$ 的各列同样打包，然后验证单条等式：
-\begin{equation}
-\label{eq:02-kos15:verify}
+\begin{equation}\label{eq:02-kos15:verify}
 \sum_{j=1}^{m} q_{*,j} \cdot \chi_j
 \stackrel{?}{=}
 \tau \oplus \rho \cdot s. \tag{verify}
@@ -231,14 +221,12 @@ Sender 到底在验什么? TLDR：Sender 在验 $q$（等价于验 $u$）是否�
 这部分与 IKNP 一致，本节仅回顾重点。
 
 Sender 对每个 OT 实例 $j$，计算密钥用于 Enc。
-\begin{align}
-K^0_j &:= \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,q_{*,j}\right), \\
+\begin{align}K^0_j &:= \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,q_{*,j}\right), \\
 K^1_j &:= \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,q_{*,j} \oplus s\right).
 \end{align}
 
 Receiver 只能派生出密钥
-\begin{equation}
-\label{eq:02-kos15:10}
+\begin{equation}\label{eq:02-kos15:10}
 K^{b_j}_j := \mathtt{Hash}\left(\mathtt{sid},\,\mathtt{tag},\,j,\,t^0_{*,j}\right).
 \end{equation}
 
@@ -275,8 +263,7 @@ IKNP 所倚仗的（umat）一次一密被继承下来：$u$ 在 Sender 眼里�
 Sender 唯一要做的“坏事”是不删日志。我们把（com-b）
 改写成如下矩阵形式，
 式中 $X:=\left\{\chi_j\right\}$ 为 $\kappa \times m$ 布尔矩阵。
-\begin{equation}
-\label{eq:02-kos15:11}
+\begin{equation}\label{eq:02-kos15:11}
 \rho = Xb,~ X_{*,j}:=\chi_j.
 \end{equation}
 
@@ -355,8 +342,7 @@ Sender 唯一要做的“坏事”是不删日志。我们把（com-b）
 \subsubsection{Receiver 发送半密钥.}
 
 同（umat），只是 $b$ 换成 $b'$，长度 $m'$：
-\begin{equation}
-\label{eq:02-kos15:12}
+\begin{equation}\label{eq:02-kos15:12}
 u_{i,*} := t^0_{i,*} \oplus t^1_{i,*} \oplus b'.
 \end{equation}
 
@@ -365,8 +351,7 @@ $t^0, t^1$ 的列数相应地延长到 $m'$。
 \subsubsection{双方各自生成挑战.}
 
 朴素版 2.2.（2）的挑战轮被取消，双方各自从 $u$ 算出挑战：
-\begin{equation}
-\label{eq:02-kos15:chal-fs}
+\begin{equation}\label{eq:02-kos15:chal-fs}
 \boldsymbol{\chi} := \mathrm{XOF}\left(\mathtt{sid},\, u\right)
 \in \mathbb{GF}(2^\kappa)^{m'}. \tag{chal-fs}
 \end{equation}
@@ -461,14 +446,12 @@ Receiver 至多有约 $2^{-\min(d,\,\kappa-d)}$ 概率通过，$d$ 大致理解�
 
 把 IKNP03 OT 扩展（q.i7t）的逐行关系式转成逐列：对诚实 Receiver，
 每列满足
-\begin{equation}
-\label{eq:02-kos15:q-j7t}
+\begin{equation}\label{eq:02-kos15:q-j7t}
 q_{*,j} = t^0_{*,j} \oplus b_j \odot s. \tag{q.j7t}
 \end{equation}
 
 代入（verify）左边。注意 $b_j$ 是单比特标量，可以在域乘法里自由移动：
-\begin{align}
-\sum_j q_{*,j} \cdot \chi_j
+\begin{align}\sum_j q_{*,j} \cdot \chi_j
 &=
 \sum_j t^0_{*,j} \cdot \chi_j
 \oplus
@@ -503,8 +486,7 @@ Receiver 的输入 ------“它是不是真的”这个问题自行消解。作�
 
 首先我们要明确：无论 Receiver 如何“天马行空”地编造 $u$ 矩阵，在
 Sender 看来，对每个 $u_{i,*}$ 存在唯一的 $m$-bit 串 $b^i$，使得
-\begin{align}
-q_{i,*} &\phantom{:}= t^0_{i,*} \oplus s_i \odot b^{i},
+\begin{align}q_{i,*} &\phantom{:}= t^0_{i,*} \oplus s_i \odot b^{i},
 \\
 b^i &:= u_{i,*} \oplus t^0_{i,*} \oplus t^1_{i,*} ~. \tag{q.ill}
 \end{align}
@@ -516,28 +498,24 @@ b^i &:= u_{i,*} \oplus t^0_{i,*} \oplus t^1_{i,*} ~. \tag{q.ill}
 其中 $\beta_j := \left(b^1_j, \ldots, b^\kappa_j\right)$ 是第 $j$ 列各行选择位拼成的列向量。
 再把按位与拆到行上，$s \odot \beta_j = \sum_i s_i \odot b^i_j \odot e_i$，
 于是（verify）左边打包出
-\begin{equation}
-\label{eq:02-kos15:15}
+\begin{equation}\label{eq:02-kos15:15}
 \sum_j q_{*,j} \cdot \chi_j
 = \sum_j t^0_{*,j} \cdot \chi_j
 \oplus \sum_i s_i \odot e_i \cdot \left<\boldsymbol{\chi},\, b^i\right>.
 \end{equation}
 
 与 Receiver 实发的 $\tau, \rho$ 代入（verify），整理得通过条件为下式。
-\begin{equation}
-\label{eq:02-kos15:pass}
+\begin{equation}\label{eq:02-kos15:pass}
 e \;\stackrel{?}{=}\; \sum_i s_i \odot \left(e_i \cdot c_i\right). \tag{pass}
 \end{equation}
 
 其中 $c_i$ 是第 $i$ 行相对于 $\rho$ 的偏差，定义为
-\begin{equation}
-\label{eq:02-kos15:17}
+\begin{equation}\label{eq:02-kos15:17}
 c_i := \left<\boldsymbol{\chi},\, b^i\right> \oplus \rho.
 \end{equation}
 
 而 $e$ 是 $\tau$ 相对于“诚实 $\tau$”（绝对锚）的偏差。
-\begin{equation}
-\label{eq:02-kos15:18}
+\begin{equation}\label{eq:02-kos15:18}
 e := \tau \oplus \sum_j t^0_{*,j} \cdot \chi_j ~.
 \end{equation}
 
@@ -624,8 +602,7 @@ SoftSpokenOT（Roy，CRYPTO 2022）补齐；协议本身无恙。
 以及 $K''$，形状为 $n_2\times (n_1-m)$。
 
 分块乘法给出 $y = Kx = K'x' \oplus K''x''$，移项得
-\begin{equation}
-\label{eq:02-kos15:19}
+\begin{equation}\label{eq:02-kos15:19}
 K''x'' = y \oplus K'x'.
 \end{equation}
 
@@ -651,8 +628,7 @@ K''x'' = y \oplus K'x'.
 故解集大小恒为 $2^{n_1-n_2}$。
 
 两种情况合并：
-\begin{equation}
-\label{eq:02-kos15:20}
+\begin{equation}\label{eq:02-kos15:20}
 \Pr\left[\text{猜中前 } m \text{ 比特}\right] = 2^{-\min(m,\, n_1-n_2)} \le 1.
 \end{equation}
 
@@ -672,8 +648,7 @@ TLDR：$\ell$ 超过 $n_2$ 的部分是在维护满秩假设的可信度。
 概率分两层算。对\textbf{给定}的非零 $w$，事件
 “$w^\intercal K'' = 0$”的概率是 $1/2^{\ell}$。而“不满秩”
 是对全体非零 $w$ 取并集的事件，候选 $w$ 不足 $2^{n_2}$ 个，由联合界得
-\begin{equation}
-\label{eq:02-kos15:21}
+\begin{equation}\label{eq:02-kos15:21}
 \Pr\left[K'' \text{ 不满秩}\right] < 2^{n_2} \cdot 2^{-\ell} = 2^{-(\ell - n_2)}.
 \end{equation}
 
@@ -732,8 +707,7 @@ TLDR：$\ell$ 超过 $n_2$ 的部分是在维护满秩假设的可信度。
   先把 $\odot$ 拆开，$a \odot x = \sum_i a_i \odot x_i \odot e_i$，再用
 “$\cdot$”对“$\oplus$”的分配律，得
 \end{itemize}
-\begin{equation}
-\label{eq:02-kos15:22}
+\begin{equation}\label{eq:02-kos15:22}
 \left(a \odot x\right) \cdot y = \sum_i \left(a_i \odot x_i\right) \odot \left(e_i \cdot y\right).
 \end{equation}
 
@@ -741,8 +715,7 @@ TLDR：$\ell$ 超过 $n_2$ 的部分是在维护满秩假设的可信度。
 开关是单比特 $a_i \odot x_i$，由混合结合律自由移动。附录 B
 处理 $s \odot \beta_j$ 用的就是这一招。* 从右到左：掩码只能挡在乘积外面，
 对乘积结果逐位拆，
-\begin{equation}
-\label{eq:02-kos15:23}
+\begin{equation}\label{eq:02-kos15:23}
 a \odot \left(x \cdot y\right) = \sum_i a_i \odot \left(x \cdot y\right)_i \odot e_i,
 \end{equation}
 

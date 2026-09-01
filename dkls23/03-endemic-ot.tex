@@ -35,8 +35,7 @@ Endemic OT 本质上是安全定义更弱的 Base OT。虽然安全定义更弱�
 
 Receiver 采样盲化项 $u_i\in \mathbb{Z}_q$，这里 $q$ 为曲线点群的阶；
 另采样新鲜随机串 $w_i$。然后对选项 $s_i$ 进行如下承诺：
-\begin{align}
-R_i^{1-s_i} &:=
+\begin{align}R_i^{1-s_i} &:=
 \mathtt{HashToGroup}(\mathtt{sid}, \mathtt{tag1}, i, w_i), \\
 R_i^{s_i} &:=
 u_i G \\
@@ -60,8 +59,7 @@ R_i^{1-s_i}
 
 Sender 无法区分收到的 $R_i^0, R_i^1$ 中哪个承载着选项，
 这正是协议追求的效果。计算如下半密钥：
-\begin{align}
-U_i^0 &:= R_i^0 + \mathtt{HashToGroup}(
+\begin{align}U_i^0 &:= R_i^0 + \mathtt{HashToGroup}(
 \mathtt{sid}, \mathtt{tag2}, 0, i,
 R_i^1
 ),\\
@@ -77,8 +75,7 @@ Receiver 能本地计算两个 $U_i$（读者自行推导），进而解出两�
 
 Sender 采样 $v_i^0, v_i^1 \in \mathbb{Z}_q$，
 令 $V_i^0:=v_i^0 G$，$V_i^1 := v_i^1 G$。生成全密钥：
-\begin{align}
-\rho_i^0 &:= \mathtt{Hash}(\mathtt{sid}, \mathtt{tag3}, 0, i,\,
+\begin{align}\rho_i^0 &:= \mathtt{Hash}(\mathtt{sid}, \mathtt{tag3}, 0, i,\,
 v_i^0\cdot U_i^0), \\
 \rho_i^1 &:= \mathtt{Hash}(\mathtt{sid}, \mathtt{tag3}, 1, i,\,
 v_i^1\cdot U_i^1). \tag{keys}
@@ -89,8 +86,7 @@ Sender 输出 $\rho_i^0, \rho_i^1$，发送 $V_i^0, V_i^1$。
 \subsubsection{Receiver 输出所选的全密钥}
 
 对每个 OT 实例编号 $i$，Receiver 计算
-\begin{equation}
-\label{eq:03-endemic-ot:1}
+\begin{equation}\label{eq:03-endemic-ot:1}
 \rho_i^{s_i}:=\mathtt{Hash}(
 \mathtt{sid}, \mathtt{tag3}, s_i, i,\,
 u_i\cdot V_i^{s_i}

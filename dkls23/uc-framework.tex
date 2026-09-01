@@ -6,8 +6,7 @@
 \subsection{导读}
 
 读 DKLS23 第 4 节，会撞上这样一行：
-\begin{equation}
-\label{eq:uc-framework:1}
+\begin{equation}\label{eq:uc-framework:1}
 \forall \mathcal{A}\ \exists \mathcal{S}\ \forall \mathcal{Z}:\quad
 \mathsf{EXEC}_{\pi,\mathcal{A},\mathcal{Z}} \;\approx\; \mathsf{EXEC}_{\mathcal{F},\mathcal{S},\mathcal{Z}}.
 \end{equation}
@@ -96,7 +95,7 @@ A（安全）}　记真实协议为 $\pi$，理想功能为 $\mathcal{F}$。$\pi
 \item
   它与敌手席之间有一条信道，信道上允许的报文种类由 $\mathcal{F}$ 的代码显式列出，即
   §1 所说的“菜单”
-  （例如：向敌手席泄露某些信息、征询是否交付输出、接受 abort 指令）
+（例如：向敌手席泄露某些信息、征询是否交付输出、接受 abort 指令）
 \item
   它\textbf{不可腐化}。
 \end{enumerate}
@@ -194,8 +193,7 @@ $\mathcal{Z}$ 全程的所见所闻（称为它的
 \textbf{view}）是一大坨数据：自己选的输入，诚实方的输出，和敌手的全部通信。最后只许输出一个比特，够用吗？答：够用。用一个定义和两条可证的命题说清。
 
 \textbf{定义 3.3（统计距离）}　两个分布 $X, Y$ 的统计距离为
-\begin{equation}
-\label{eq:uc-framework:2}
+\begin{equation}\label{eq:uc-framework:2}
 \Delta(X,Y) \;=\; \max_T \bigl|\, \Pr[X\in T] - \Pr[Y\in T] \,\bigr|,
 \end{equation}
 
@@ -229,8 +227,7 @@ view，再交给任意裁判程序 $D$ 压成一比特判决，能达到的区�
 
 \textbf{定义 3.7（EXEC 与 UC
 安全）}　记 $\mathsf{EXEC}_{\pi,\mathcal{A},\mathcal{Z}}$ 为真实世界中 $\mathcal{Z}$ 输出的那一比特的分布，按安全参数索引成分布簇；$\mathsf{EXEC}_{\mathcal{F},\mathcal{S},\mathcal{Z}}$ 同理。称 $\pi$\textbf{UC-实现}$\mathcal{F}$，当且仅当
-\begin{equation}
-\label{eq:uc-framework:3}
+\begin{equation}\label{eq:uc-framework:3}
 \forall \mathcal{A}\ \exists \mathcal{S}\ \forall \mathcal{Z}:\quad
 \mathsf{EXEC}_{\pi,\mathcal{A},\mathcal{Z}} \;\approx\; \mathsf{EXEC}_{\mathcal{F},\mathcal{S},\mathcal{Z}},
 \end{equation}
@@ -264,7 +261,7 @@ view，再交给任意裁判程序 $D$ 压成一比特判决，能达到的区�
 \endlastfoot
 参与方 $P_i$ & 真实 & 固定 & 协议设计者 & 网络 + I/O 带 \\
 敌手 $\mathcal{A}$ & 真实 & $\forall$ & 攻击者 & 网络 +
-腐化方（碰不到诚实方 I/O 带） \\
+腐化方（碰不到诚实方 I/O 带）\\
 理想功能 $\mathcal{F}$ & 理想 & 固定 & 定义者 & 各方 I/O +
 给 $\mathcal{S}$ 的命令菜单 \\
 模拟器 $\mathcal{S}$ & 理想 & $\exists$ & 证明者 &
@@ -360,8 +357,7 @@ PPT），它读取诚实方的输入输出与敌手信道上的数据，就能�
 \textbf{定理 4.3（安全搬运）}　设 $\pi$ UC-实现 $\mathcal{F}$（定义
 3.7），区分优势至多 $\varepsilon$；对给定的真实敌手 $\mathcal{A}$，记 $\mathcal{S}$ 为定义
 3.7 配给它的模拟器。则对任何可检验的坏事 $B$，
-\begin{equation}
-\label{eq:uc-framework:4}
+\begin{equation}\label{eq:uc-framework:4}
 \Pr[B \mid \text{real}] \;\le\; \Pr[B \mid \text{ideal}] + \varepsilon,
 \end{equation}
 
@@ -378,8 +374,7 @@ PPT），它读取诚实方的输入输出与敌手信道上的数据，就能�
 （b）\textbf{两条按构造成立的恒等式}：$\mathcal{Z}^*$ 在两个世界跑同一份代码，$V$ 读到的永远是\textbf{当前世界}产出的数据。所以
 “$\mathcal{Z}^*$ 输出 1”在真实世界里就是
 “$B$ 在真实世界发生”，在理想世界里就是“$B$ 在理想世界发生”：
-\begin{equation}
-\label{eq:uc-framework:5}
+\begin{equation}\label{eq:uc-framework:5}
 \Pr[\mathcal{Z}^*\to 1 \mid \text{real}] = \Pr[B \mid \text{real}],
 \qquad
 \Pr[\mathcal{Z}^*\to 1 \mid \text{ideal}] = \Pr[B \mid \text{ideal}].
@@ -392,8 +387,7 @@ PPT），它读取诚实方的输入输出与敌手信道上的数据，就能�
 不是援引哪条定理，而是本定理的\textbf{前提}（在 DKLS23
 的语境里，这个前提由论文的 Thm 4.1 兑现）。按定义
 3.7，它是一个全称命题：对\textbf{所有}环境，两个世界的输出分布相差至多 $\varepsilon$。全称命题可以在任何特例上实例化------这不是技巧，这就是 $\forall$ 的用途。实例化在特例 $\mathcal{Z}^*$ 上，单边展开绝对值：
-\begin{equation}
-\label{eq:uc-framework:6}
+\begin{equation}\label{eq:uc-framework:6}
 \Pr[\mathcal{Z}^*\to 1 \mid \text{real}] \;\le\; \Pr[\mathcal{Z}^*\to 1 \mid \text{ideal}] + \varepsilon.
 \end{equation}
 
@@ -571,8 +565,7 @@ UC 证明不是“协议固若金汤”的证书，而是把“协议安全吗�
 \end{enumerate}
 
 定量版一行写尽（定理 4.3 的抽象形式）：
-\begin{equation}
-\label{eq:uc-framework:7}
+\begin{equation}\label{eq:uc-framework:7}
 \Pr[\text{坏事} \mid \text{real}]
 \;\le\;
 \underbrace{\Pr[\text{坏事} \mid \text{ideal}]}_{\text{假设管辖}}

@@ -161,8 +161,7 @@ $M = L/S$ & 挑战向量长度 & 4 \\
 Receiver 对第 $i, i \in 0, \kappa/k)$ 棵 PPRF 树：
 
 延长和刷新叶子 $\mathcal{T}_{i, x}$，得到 $r_{i,x}$。
-\begin{equation}
-\label{eq:05-softspoken:leaf}
+\begin{equation}\label{eq:05-softspoken:leaf}
 r_{i,x} := \mathtt{PRG}\left(\mathtt{sid},\, i,\, \mathtt{tag4},\, \mathcal{T}_{i,x}\right) \in \left\{0,1\right\}^{L'}. \tag{leaf}
 \end{equation}
 
@@ -172,23 +171,20 @@ r_{i,x} := \mathtt{PRG}\left(\mathtt{sid},\, i,\, \mathtt{tag4},\, \mathcal{T}_{
 
 摇 $S$ 比特陪跑选项 $\beta^\mathrm{ext}$，
 与真实选项 $\beta$ 拼接得到 $\hat\beta$。
-\begin{equation}
-\label{eq:05-softspoken:2}
+\begin{equation}\label{eq:05-softspoken:2}
 \hat\beta := \beta \,\|\, \beta^\mathrm{ext} \in \left\{0,1\right\}^{L'}.
 \end{equation}
 
 陪跑的作用详见 3.2.（0）Receiver 延长选择向量。
 
 生成半密钥兼选项承诺 $u$。
-\begin{equation}
-\label{eq:05-softspoken:umat}
+\begin{equation}\label{eq:05-softspoken:umat}
 u_{i,*} := \hat\beta \oplus \sum_{x \in 0, q)} r_{i,x}. \tag{umat}
 \end{equation}
 
 单侧全密钥原像：矩阵 $v$ 的形状为 $\kappa\times L'$。
 行号 $i' := ik + b$，其中 $b \in [0, k)$ 用于索引叶子编号的比特位。
-\begin{equation}
-\label{eq:05-softspoken:vmat}
+\begin{equation}\label{eq:05-softspoken:vmat}
 v_{i',*} := \sum_{x \in [0, q)} \mathrm{bit}_b(x)\cdot r_{i,x}. \tag{vmat}
 \end{equation}
 
@@ -212,15 +208,13 @@ Fiat-Shamir 的收益不只是省一轮通信，更在于：$\chi$ 被随机谕�
 末段记为 $v^\mathrm{ext}_{i'}$。把 $\hat\beta$ 照同样“刀法”切段：
 前 $M$ 段记为 $\hat\beta_j$，末段恰好是陪跑选项 $\beta^\mathrm{ext}$。
 各段视为 $\mathbb{GF}(2^S)$ 元素。
-\begin{equation}
-\label{eq:05-softspoken:tau-mat}
+\begin{equation}\label{eq:05-softspoken:tau-mat}
 \tau_{i'} := \left\{
     \sum_{j\in[0,M)} \chi_j \cdot\hat v_{i',j}
 \right\}
 \oplus v^\mathrm{ext}_{i'}. \tag{tau-mat}
 \end{equation}
-\begin{equation}
-\label{eq:05-softspoken:beta-tilde}
+\begin{equation}\label{eq:05-softspoken:beta-tilde}
 \tilde\beta := \left\{
     \sum_{j\in[0,M)} \chi_j \cdot \hat\beta_j
 \right\} \oplus \beta^\mathrm{ext}. \tag{beta-tilde}
@@ -234,8 +228,7 @@ Receiver 把 $u,\tau,\tilde\beta$ 发给 Sender。SoftSpoken
 Sender 首先需计算密钥原像 $w\in\left\{0,1\right\}^{\kappa\times L'}$。
 对行 $i' = i\cdot k + b$，Sender
 用手里的 $q-1$ 片叶子和收到的 $u_{i,*}$ 计算
-\begin{equation}
-\label{eq:05-softspoken:wmat}
+\begin{equation}\label{eq:05-softspoken:wmat}
 w_{i',*} := \left\{
     \sum_{x \in [0, q)}
     \mathrm{bit}_b(\delta_i \oplus x) \cdot r_{i,x}
@@ -251,8 +244,7 @@ w_{i',*} := \left\{
 
 引理：对每行 $i'$，Sender 全密钥原像 $w$ 与 Receiver
 全密钥原像 $v$ 满足如下关系
-\begin{equation}
-\label{eq:05-softspoken:wv-row-eq}
+\begin{equation}\label{eq:05-softspoken:wv-row-eq}
 w_{i',*} = v_{i',*} \oplus \mathrm{bit}_b(\delta_i) \cdot\hat\beta. \tag{wv-row-eq}
 \end{equation}
 
@@ -270,14 +262,12 @@ w_{i',*} = v_{i',*} \oplus \mathrm{bit}_b(\delta_i) \cdot\hat\beta. \tag{wv-row-
 与 $\hat\beta$。$\blacksquare$
 
 引理：对每一列 $j \in [0, L)$ 有
-\begin{equation}
-\label{eq:05-softspoken:wv-eq}
+\begin{equation}\label{eq:05-softspoken:wv-eq}
 w_{*,j} = v_{*,j} \oplus \beta_j \cdot \Delta, \tag{wv-eq}
 \end{equation}
 
 其中，
-\begin{equation}
-\label{eq:05-softspoken:delta}
+\begin{equation}\label{eq:05-softspoken:delta}
 \Delta := \delta_0 \,\|\, \delta_1 \,\|\, \cdots \,\|\, \delta_{\kappa/k - 1} \in \left\{0,1\right\}^{\kappa}. \tag{delta}
 \end{equation}
 
@@ -290,8 +280,7 @@ w_{*,j} = v_{*,j} \oplus \beta_j \cdot \Delta, \tag{wv-eq}
 
 把每行 $w_{i',*}$ 照 1.2.（3）的刀法切段，
 得 $\hat w_{i',j}$ 与 $w^\mathrm{ext}_{i'}$，然后逐行验证
-\begin{equation}
-\label{eq:05-softspoken:verify}
+\begin{equation}\label{eq:05-softspoken:verify}
 \left\{
     \sum_{j\in[0,M)} \chi_j\cdot\hat w_{i',j}
 \right\}
@@ -316,14 +305,12 @@ w_{*,j} = v_{*,j} \oplus \beta_j \cdot \Delta, \tag{wv-eq}
 忽略陪跑列，对列号（实例编号）$j \in 0, L)$：
 
 Receiver 计算
-\begin{equation}
-\label{eq:05-softspoken:12}
+\begin{equation}\label{eq:05-softspoken:12}
 \rho^{\beta_j}_j := \mathtt{Hash}\left(\mathtt{sid},\, \mathtt{tag5},\, j,\, v_{*,j}\right).
 \end{equation}
 
 Sender 计算
-\begin{align}
-\rho^0_j &:= \mathtt{Hash}\left(\mathtt{sid},\, \mathtt{tag5},\, j,\,
+\begin{align}\rho^0_j &:= \mathtt{Hash}\left(\mathtt{sid},\, \mathtt{tag5},\, j,\,
     w_{*,j}
 \right),\\
 \rho^1_j &:= \mathtt{Hash}\left(\mathtt{sid},\, \mathtt{tag5},\, j,\,

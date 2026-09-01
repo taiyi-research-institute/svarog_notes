@@ -31,14 +31,12 @@ $\zeta_i$ 是本方私有，但全员加起来必须满足 $\sum_{i\in S}\zeta_i
 Keygen Round 3 时，
 每对 $i > j$ 摇了对称盲化项 $\epsilon_{i,j} \in \mathbb{B}^{256}$，
 双方都存。Sign 时双方对称地从这一颗种子派生一个只供这次签名用的标量：
-\begin{equation}
-\label{eq:misc-rerand:zeta-ij}
+\begin{equation}\label{eq:misc-rerand:zeta-ij}
 \zeta_{i,j} := \mathrm{Hash}(\epsilon_{\max(i,j),\min(i,j)}, \mathrm{sid}, S) \in \mathbb{Z}_n. \tag{zeta-ij}
 \end{equation}
 
 然后用一个反对称权重把所有 pairwise $\zeta_{i,j}$ 拼成 $\zeta_i$：
-\begin{equation}
-\label{eq:misc-rerand:zeta}
+\begin{equation}\label{eq:misc-rerand:zeta}
 \zeta_i := \sum_{j\in S\setminus\{i\}} \mathrm{sgn}(i,j)\cdot \zeta_{i,j}, \quad
 \mathrm{sgn}(i,j) := \begin{cases} +1 & i > j \\ -1 & i < j \end{cases}. \tag{zeta}
 \end{equation}

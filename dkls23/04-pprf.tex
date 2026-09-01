@@ -24,8 +24,7 @@ $\lambda$ 是计算安全参数。其数值沿用 {[}IKNP03 OT 扩展
 入参为域分离参数与父节点内容，出参对半切开分给两个孩子。
 节点 $\mathcal{T}^i_y$ 的左孩子记为 $\mathcal{T}^{i+1}_{2y}$，
 右孩子记为 $\mathcal{T}^{i+1}_{2y+1}$，父子节点的关系为
-\begin{equation}
-\label{eq:04-pprf:step}
+\begin{equation}\label{eq:04-pprf:step}
 \mathcal{T}^{i+1}_{2y} \mathbin{\|} \mathcal{T}^{i+1}_{2y+1} := \mathtt{PRF}(\mathtt{sid},\, \mathtt{tid},\, \mathtt{tag1},\, \mathcal{T}^i_y). \tag{step}
 \end{equation}
 
@@ -96,16 +95,14 @@ PPRF 树有一个用不上的根节点，视其为第 0 层。
 
 Sender 按公式（base）构建第 $i=1$ 的两个节点。随后按公式（step）
 递归地构建节点，直到构建出第 $i+1=k$ 层（即叶子层）的所有节点。
-\begin{equation}
-\label{eq:04-pprf:base}
+\begin{equation}\label{eq:04-pprf:base}
 \mathcal{T}^1_0 := \rho_0^0, \quad \mathcal{T}^1_1 := \rho_0^1. \tag{base}
 \end{equation}
 
 我们不妨假设这棵树有一个用不上的根节点，视其为第 0 层。
 
 接下来，对第 $i, i\in[1, k)$ 层计算两个修正值
-\begin{equation}
-\label{eq:04-pprf:corr}
+\begin{equation}\label{eq:04-pprf:corr}
 t_i^b :=
 \rho_i^b \oplus \bigoplus_{y \in [0, 2^i)} \mathcal{T}^{i+1}_{2y + b},
 \quad
@@ -127,20 +124,17 @@ BuildPPRF/EvalPPRF 是同文 Fig.13，DKLS23 引用其做 OT 扩展）在 BuildP
 
 Sender 对每个叶子算一个长度 $2\lambda$ 的标签。
 注意 $\mathtt{tag2}$ 把它与（step）的节点派生隔离开：
-\begin{equation}
-\label{eq:04-pprf:sz}
+\begin{equation}\label{eq:04-pprf:sz}
 \tilde s_z := \mathtt{PRF}(\mathtt{sid},\, \mathtt{tid},\, \mathtt{tag2},
 \mathcal{T}^k_z), ~ z \in [0, q). \tag{sz}
 \end{equation}
 
 然后计算如下两个 $2\lambda$-比特串，发给 Receiver。其意义依次为：
 对所有叶子节点的异或承诺，对所有叶子节点的哈希承诺。
-\begin{equation}
-\label{eq:04-pprf:com-x}
+\begin{equation}\label{eq:04-pprf:com-x}
 \tilde t := \bigoplus_{z \in [0, q)} \tilde s_z. \tag{com-x}
 \end{equation}
-\begin{equation}
-\label{eq:04-pprf:com-h}
+\begin{equation}\label{eq:04-pprf:com-h}
 \tilde s := \mathtt{Hash}\bigl(\mathtt{sid},\, \mathtt{tid},\, \mathtt{tag3},s_0 \,\|\, \tilde s_1 \,\|\, \cdots \,\|\, \tilde s_{q-1}\bigr) \tag{com-h}
 \end{equation}
 
@@ -148,15 +142,13 @@ Sender 对每个叶子算一个长度 $2\lambda$ 的标签。
 
 Receiver
 的选择向量 $\beta = (\beta_0, \beta_1, \dots, \beta_{k-1}) \in \left\{0,1\right\}^k$ 对应一个打孔下标
-\begin{equation}
-\label{eq:04-pprf:hole}
+\begin{equation}\label{eq:04-pprf:hole}
 \hat y = \sum_{i=0}^{k-1} (1-\beta_i) \cdot 2^{k-1-i}. \tag{hole}
 \end{equation}
 
 实际上，打孔下标是由如下递归式直接推导出来的。下式同时还定义了
 “活动路径”$\left\{y_1, \dots, y_k\right\}$。
-\begin{align}
-y_1     &:= 1-\beta_0, \,\dots \\
+\begin{align}y_1     &:= 1-\beta_0, \,\dots \\
 y_{i+1} &:= 2y_i+(1-\beta_i), \,\dots \\
 y_k &:= \hat y. \tag{path}
 \end{align}
@@ -171,16 +163,14 @@ y_k &:= \hat y. \tag{path}
 
 而对编号为 $(i, y_i)$ 的节点，
 只能恢复出编号为 $(i+1, 2y_i+\beta_i)$ 的子节点。恢复方法如下式：
-\begin{equation}
-\label{eq:04-pprf:8}
+\begin{equation}\label{eq:04-pprf:8}
 \mathcal{T}^{i+1}_{2 y_i + \beta_i} = 
 t_i^{\beta_i} \oplus \rho_i^{\beta_i} 
 \oplus \bigoplus_{z \neq y_i} \mathcal{T}^{i+1}_{2z + \beta_i}.
 \end{equation}
 
 这样恢复是因为 Sender 视角下的 $t_i^{\beta_i}$ 满足下式
-\begin{equation}
-\label{eq:04-pprf:9}
+\begin{equation}\label{eq:04-pprf:9}
 t_i^{\beta_i} = \rho_i^{\beta_i} \oplus \bigoplus_{z \in [0, 2^i)} \mathcal{T}^{i+1}_{2z + \beta_i}.
 \end{equation}
 
@@ -192,8 +182,7 @@ Sender 视角下的树在整条活动路径打孔的版本。
 紧接 EvalPPRF，Receiver 要校验 Sender 的 $(\tilde t, \tilde s)$ 一致。
 Receiver 只算得出 $z\ne \hat y$ 的标签，详见公式（sz）。
 缺的那一项 $\tilde s_{\hat y}$ 可以从 $\tilde t$ 解出：
-\begin{equation}
-\label{eq:04-pprf:sy}
+\begin{equation}\label{eq:04-pprf:sy}
 \tilde s_y := \tilde t \oplus \bigoplus_{z \ne y} \tilde s_z. \tag{sy}
 \end{equation}
 

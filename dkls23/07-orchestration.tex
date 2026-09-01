@@ -17,8 +17,7 @@
   子协议 sid 从 \texttt{sid} 和参与方编号派生而来。例如 base OT
   实例 $(i,j)$ 用
 \end{itemize}
-\begin{equation}
-\label{eq:07-orchestration:subsid-example}
+\begin{equation}\label{eq:07-orchestration:subsid-example}
 \mathrm{Hash}(\mathtt{sid}, i, j, \texttt{"base\_ot"}). \tag{subsid-example}
 \end{equation}
 
@@ -43,8 +42,7 @@ PPRF 种子已建好，后续 sign 不再跑 base OT。
 \item
   摇盲化 $\varepsilon_{1,i} \in \mathbb{B}^{256}$，计算第一次 hash 承诺
 \end{enumerate}
-\begin{equation}
-\label{eq:07-orchestration:2}
+\begin{equation}\label{eq:07-orchestration:2}
 \mathrm{Com}_{1,i} := \mathrm{Hash}(\mathrm{sid}, i, \mathbf{F}_i, \varepsilon_{1,i}).
 \end{equation}
 
@@ -213,8 +211,7 @@ PPRF 种子已建好，后续 sign 不再跑 base OT。
 \item
   聚合本方份额
 \end{enumerate}
-\begin{equation}
-\label{eq:07-orchestration:3}
+\begin{equation}\label{eq:07-orchestration:3}
 x_i := \sum_{j\in [n]} d_{j,i} = P(i).
 \end{equation}
 
@@ -248,8 +245,7 @@ x_i := \sum_{j\in [n]} d_{j,i} = P(i).
 \item
   Lagrange 重构验公钥：
 \end{itemize}
-\begin{align}
-\lambda(j,S) &:= \prod_{k\in S\setminus\{j\}} \frac{-k}{j - k}, \tag{coef}\\
+\begin{align}\lambda(j,S) &:= \prod_{k\in S\setminus\{j\}} \frac{-k}{j - k}, \tag{coef}\\
 Y &\phantom{:}\stackrel{?}{=} \sum_{j\in S}\lambda(j,S) \cdot S_j.
 \end{align}
 
@@ -304,8 +300,7 @@ ECDSA 签名公式回顾：\emph{$R := (\sum_i r_i) G$，$r$ 是 $R$ 的横坐�
 \item
   计算衍生分片：
 \end{enumerate}
-\begin{equation}
-\label{eq:07-orchestration:4}
+\begin{equation}\label{eq:07-orchestration:4}
 x'_i := \lambda(i,S)\cdot x_i + \zeta_i + \nabla x \cdot |S|^{-1}.
 \end{equation}
 
@@ -323,8 +318,7 @@ x'_i := \lambda(i,S)\cdot x_i + \zeta_i + \nabla x \cdot |S|^{-1}.
 \item
   摇盲化 $\varepsilon_{R,i} \in \mathbb{B}^{256}$，算 $R_i$ 承诺
 \end{enumerate}
-\begin{equation}
-\label{eq:07-orchestration:5}
+\begin{equation}\label{eq:07-orchestration:5}
 \mathrm{Com}_{R,i} := \mathrm{Hash}(\mathrm{sid}, i, R_i, \varepsilon_{R,i}).
 \end{equation}
 
@@ -337,8 +331,7 @@ x'_i := \lambda(i,S)\cdot x_i + \zeta_i + \nabla x \cdot |S|^{-1}.
 \item
   计算全员 transcript hash $d$，将在 Round 3 维护各方的一致性。
 \end{enumerate}
-\begin{equation}
-\label{eq:07-orchestration:6}
+\begin{equation}\label{eq:07-orchestration:6}
 d := \mathrm{Hash}(\mathrm{sid}, Y', \mathrm{Com}_{R,1}, \cdots, \mathrm{Com}_{R,|S|}).
 \end{equation}
 
@@ -395,8 +388,7 @@ d := \mathrm{Hash}(\mathrm{sid}, Y', \mathrm{Com}_{R,1}, \cdots, \mathrm{Com}_{R
   满足如下一组 MtA 关系。注意 $\beta_{i,j}$ 是参与方 $j$ 作为 Receiver
   私有的。
 \end{itemize}
-\begin{align}
-y^\mathtt{r}_{i,j} + z^\mathtt{r}_{i,j} &= r_i \cdot \beta_{i,j}, \\
+\begin{align}y^\mathtt{r}_{i,j} + z^\mathtt{r}_{i,j} &= r_i \cdot \beta_{i,j}, \\
 y^\mathtt{x}_{i,j} + z^\mathtt{x}_{i,j} &= x'_i \cdot \beta_{i,j}. 
 \end{align}
 
@@ -450,8 +442,7 @@ y^\mathtt{x}_{i,j} + z^\mathtt{x}_{i,j} &= x'_i \cdot \beta_{i,j}.
 \item
   验 $\Gamma$ 一致性。对每个 $j\ne i$：
 \end{enumerate}
-\begin{equation}
-\label{eq:07-orchestration:7}
+\begin{equation}\label{eq:07-orchestration:7}
 \beta_{j,i} \cdot R_j \stackrel{?}{=} \Gamma^\mathtt{r}_{j,i} + z^\mathtt{r}_{j,i} \cdot G, \quad
 \beta_{j,i} \cdot Y_j \stackrel{?}{=} \Gamma^\mathtt{x}_{j,i} + z^\mathtt{x}_{j,i} \cdot G.
 \end{equation}
@@ -473,8 +464,7 @@ RVOLE 协议本身不保证输入的乘法分片是下游协议所需的。
 \item
   此时形成 ECDSA 签名的第一字段，即
 \end{itemize}
-\begin{align}
-R &:= R_i + \sum_{j\ne i} R_j, \\
+\begin{align}R &:= R_i + \sum_{j\ne i} R_j, \\
 r &:= R.\mathrm{x} \bmod n.
 \end{align}
 
@@ -485,8 +475,7 @@ r &:= R.\mathrm{x} \bmod n.
 \item
   聚合
 \end{itemize}
-\begin{align}
-\Phi_i &:= \phi_i + \sum_{j\ne i}\psi_{j\rightarrow i}, \\
+\begin{align}\Phi_i &:= \phi_i + \sum_{j\ne i}\psi_{j\rightarrow i}, \\
    V^\mathtt{r}_i &:= \sum_{j\ne i}(y^\mathtt{r}_{i,j} + z^\mathtt{r}_{j,i}), \\
    V^\mathtt{x}_i &:= \sum_{j\ne i}(y^\mathtt{x}_{i,j} + z^\mathtt{x}_{j,i}). \\
 \end{align}
@@ -497,8 +486,7 @@ r &:= R.\mathrm{x} \bmod n.
   算 PreSignature
   的两个分量。$s_{1,i}$ 是最终值，$s_{0,i}^\circ$ 是 $m$-未绑的部分。
 \end{itemize}
-\begin{equation}
-\label{eq:07-orchestration:8}
+\begin{equation}\label{eq:07-orchestration:8}
 s_{1,i} := r_i \cdot \Phi_i + V^\mathtt{r}_i, \quad
 s_{0,i}^\circ := r_x \cdot (x'_i \cdot \Phi_i + V^\mathtt{x}_i).
 \end{equation}
@@ -506,8 +494,7 @@ s_{0,i}^\circ := r_x \cdot (x'_i \cdot \Phi_i + V^\mathtt{x}_i).
 \subsection{Pre-sign 输出}
 
 每方 $i$ 持有
-\begin{equation}
-\label{eq:07-orchestration:9}
+\begin{equation}\label{eq:07-orchestration:9}
 \mathrm{PreSignature}_i := \bigl(r,\, s_{1,i},\, s_{0,i}^\circ,\, \phi_i\bigr).
 \end{equation}
 
@@ -548,8 +535,7 @@ s_{0,i}^\circ := r_x \cdot (x'_i \cdot \Phi_i + V^\mathtt{x}_i).
 \item
   收齐所有 $j$ 的部分签名后，算
 \end{enumerate}
-\begin{equation}
-\label{eq:07-orchestration:10}
+\begin{equation}\label{eq:07-orchestration:10}
 s := \frac{\sum_{j\in S}s_{0,j}}{\sum_{j\in S}s_{1,j}}.
 \end{equation}
 

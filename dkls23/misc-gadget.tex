@@ -15,22 +15,19 @@ DKLS23 实际采用的是\textbf{随机 gadget 方案}：
 其中 $\lambda_s$ 是统计安全参数，实践取 128。
 
 形式上前文协议保持不变，仅做如下记号替换：
-\begin{equation}
-\label{eq:misc-gadget:1}
+\begin{equation}\label{eq:misc-gadget:1}
 2^j\;\longmapsto\;g_j,\qquad m=\kappa\;\longmapsto\;m=\kappa+2\lambda_s.
 \end{equation}
 
 具体地，
-\begin{equation}
-\label{eq:misc-gadget:2}
+\begin{equation}\label{eq:misc-gadget:2}
 \hat{x}_b=\sum_j g_j\cdot\beta_j,\quad
 z_a=-\sum_j g_j\cdot\alpha^0_j,\quad
 z_b=\sum_j g_j\cdot t_j.
 \end{equation}
 
 $\mathbf{g}$ 是公开参数，协议双方都可见，实践中通过 sid 派生：
-\begin{equation}
-\label{eq:misc-gadget:gvec}
+\begin{equation}\label{eq:misc-gadget:gvec}
 g_j=\mathrm{Hash}(\mathrm{sid}\,\|\,\texttt{"gadget"}\,\|\,j)\bmod n. \tag{gvec}
 \end{equation}
 
@@ -40,8 +37,7 @@ g_j=\mathrm{Hash}(\mathrm{sid}\,\|\,\texttt{"gadget"}\,\|\,j)\bmod n. \tag{gvec}
 
 为了把“差别”讲清楚，先引入一个新记号 $\boldsymbol{\beta}$，定义为 Bob
 在 $m$ 个 OT 实例中所有选择位拼成的\textbf{比特向量}：
-\begin{equation}
-\label{eq:misc-gadget:4}
+\begin{equation}\label{eq:misc-gadget:4}
 \boldsymbol{\beta}=(\beta_1,\beta_2,\ldots,\beta_m)\in\mathbb{B}^m.
 \end{equation}
 
@@ -71,8 +67,7 @@ gadget 加权求和得到的“压缩值”，也就是 Bob 在底层随机 MtA 
 \end{itemize}
 
 更精确地，由 leftover hash lemma：
-\begin{equation}
-\label{eq:misc-gadget:5}
+\begin{equation}\label{eq:misc-gadget:5}
 \bigl(\mathbf{g},\,\hat{x}_b\bigr)\;\stackrel{s}{\approx}\;\bigl(\mathbf{g},\,U\bigr),\quad U\stackrel{\$}{\leftarrow}\mathbb{Z}_n.
 \end{equation}
 

@@ -121,8 +121,7 @@ PRG $F: \left\{0,1\right\}^* \rightarrow \left\{0,1\right\}^m$，
 Receiver 把 $2\kappa$ 个种子按下式拉长为 2 个 $\kappa\times m$ 矩阵 ---
 行数 $\kappa$ 是种子条数，列数 $m$ 是 OT 实例数。
 记号：$A_{i,*}$ 表示矩阵 $A$ 的第 $i$ 行，$A_{*,j}$ 表示第 $j$ 列。
-\begin{align}
-t^0_{i,*}:=F\left(\mathtt{sid},\,\mathtt{tag},\, k^0_i\right), \\
+\begin{align}t^0_{i,*}:=F\left(\mathtt{sid},\,\mathtt{tag},\, k^0_i\right), \\
 t^1_{i,*}:=F\left(\mathtt{sid},\,\mathtt{tag},\, k^1_i\right). \\
 \end{align}
 
@@ -139,8 +138,7 @@ t^1_{i,*}:=F\left(\mathtt{sid},\,\mathtt{tag},\, k^1_i\right). \\
 
 然后以 $t^0 \oplus t^1$ 的各行（row）为密钥，对 $b$ 进行异或加密，
 如下式。
-\begin{equation}
-\label{eq:01-iknp03:umat}
+\begin{equation}\label{eq:01-iknp03:umat}
 {u}:={t}^0 \oplus {t}^1 \oplus b. \tag{umat}
 \end{equation}
 
@@ -153,14 +151,12 @@ t^1_{i,*}:=F\left(\mathtt{sid},\,\mathtt{tag},\, k^1_i\right). \\
 \subsubsection{Sender 计算完整密钥，发送密文}
 
 \paragraph{准备密钥前体}Sender 把 $\kappa$ 个种子拉长为 1 个 $\kappa\times m$ 矩阵：
-\begin{equation}
-\label{eq:01-iknp03:2}
+\begin{equation}\label{eq:01-iknp03:2}
 t_{i,*} := F\left(\mathtt{sid},\,\mathtt{tag},\,k^{s_i}_i\right).
 \end{equation}
 
 然后计算
-\begin{equation}
-\label{eq:01-iknp03:qmat}
+\begin{equation}\label{eq:01-iknp03:qmat}
 {q} := {t} \oplus \left(s\odot {u}\right). \tag{qmat}
 \end{equation}
 
@@ -181,27 +177,25 @@ t_{i,*} := F\left(\mathtt{sid},\,\mathtt{tag},\,k^{s_i}_i\right).
 两种情形合并为下式，标签 i7t = interpret。
 式中 $s\times b$ 是外积/矩阵乘：$s$ 是 $\kappa\times 1$ 矩阵，$b$ 是 $1\times m$ 矩阵，
 输出第 $(i,j)$ 元素为 $s_i \odot b_j$。
-\begin{equation}
-\label{eq:01-iknp03:q-i7t}
+\begin{equation}\label{eq:01-iknp03:q-i7t}
 q = {t}^0\oplus(s\times{b}). \tag{q.i7t}
 \end{equation}
 
 到（q.i7t）为止，一切都是按行算的。从这里开始换方向，按列看 ---
 第 $j$ 个 OT 实例只认第 $j$ 列。把（q.i7t）限制到第 $j$ 列，得到下式。
 式中 $b_j$ 是单个元素，需要广播到跟 $s$ 一样的形状，即 $\kappa$-维向量。
-\begin{equation}
-\label{eq:01-iknp03:qcol}
+\begin{equation}\label{eq:01-iknp03:qcol}
 q_{*,j}=t^0_{*,j}\oplus \left(b_j \odot s\right). \tag{qcol}
 \end{equation}
 
 \paragraph{得到密钥和密文}基于（qcol）得到 Sender 的两把密钥如下。
-\begin{align}
-K^0_j &:= \mathtt{Hash}\left(
+\begin{align}K^0_j &:= \mathtt{Hash}\left(
     \mathtt{sid},~\mathtt{tag},~j,~q_{*,j}\right
 ), \\
 K^1_j &:= \mathtt{Hash}\left(
     \mathtt{sid},~\mathtt{tag},~j,~q_{*,j}\oplus s\right
-). \tag{keys} \\\end{align}
+). \tag{keys} \\
+\end{align}
 
 探讨一下（qcol，keys）。
 
@@ -221,16 +215,14 @@ K^1_j &:= \mathtt{Hash}\left(
 \end{itemize}
 
 最后，Sender 仿照 MtA 与 Base OT 的（ot-cts）计算密文，发给 Receiver：
-\begin{equation}
-\label{eq:01-iknp03:6}
+\begin{equation}\label{eq:01-iknp03:6}
 C_j^\delta := \mathrm{Enc}\left(K_j^\delta,~M_j^\delta\right),~~\delta=0,1.
 \end{equation}
 
 \subsubsection{Receiver 解开所选密文}
 
 对每对密文 $C_j^0, C_j^1$，Receiver 计算密钥
-\begin{equation}
-\label{eq:01-iknp03:7}
+\begin{equation}\label{eq:01-iknp03:7}
 K_j^{b_j}:=\mathtt{Hash}\,\big(
 \mathtt{sid},\,\mathtt{tag},\, j,\, t_{*,j}^0\big).
 \end{equation}
