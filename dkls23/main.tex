@@ -15,11 +15,12 @@
 \documentclass[14pt]{extarticle}
 % 四边均匀砍掉 1/3: 2.6cm → 1.73cm
 \usepackage[top=1.73cm,left=1.73cm,right=1.73cm,bottom=1.73cm]{geometry}
-% 数学字体: STIX Two Math (学术出版标准, 笔画扎实, 与宋体正文协调)。
+% 数学正文使用 Latin Modern Math；黑板粗体使用经典的有衬线 AMS 字形。
 % unicode-math 必须最后加载 (amsmath/amssymb 之后)。
 \usepackage{amsmath,amssymb,mathtools}
 \usepackage{unicode-math}
 \setmathfont{latinmodern-math.otf}
+\usepackage[bb=ams]{mathalpha}
 \usepackage{longtable,booktabs,array}
 \usepackage{enumitem}
 \setlist{nosep}

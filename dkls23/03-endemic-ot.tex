@@ -35,15 +35,20 @@ Endemic OT 本质上是安全定义更弱的 Base OT。虽然安全定义更弱�
 
 Receiver 采样盲化项 $u_i\in \mathbb{Z}_q$，这里 $q$ 为曲线点群的阶；
 另采样新鲜随机串 $w_i$。然后对选项 $s_i$ 进行如下承诺：
-\begin{align}R_i^{1-s_i} &:=
+\begin{equation}
+\tag{R}\label{eq:03-endemic-ot:R}
+\begin{aligned}
+R_i^{1-s_i} &:=
 \mathtt{HashToGroup}(\mathtt{sid}, \mathtt{tag1}, i, w_i), \\
 R_i^{s_i} &:=
 u_i G \\
 &- \mathtt{HashToGroup}(
 \mathtt{sid}, \mathtt{tag2}, s_i, i,
 R_i^{1-s_i}
-). \tag{R}
-\end{align}
+). 
+\end{aligned}
+\end{equation}
+
 
 三点说明。其一，$\mathtt{HashToGroup}$ 输出离散对数未知的随机曲线点。
 其二，$w_i$ 必须新鲜且保密：若 $R_i^{1-s_i}$ 只由公开值算出，Sender
