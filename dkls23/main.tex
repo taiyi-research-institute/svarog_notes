@@ -20,7 +20,12 @@
 \usepackage{amsmath,amssymb,mathtools}
 \usepackage{unicode-math}
 \setmathfont{latinmodern-math.otf}
+% 粗体数学版本 (\boldsymbol / \mathversion{bold} 依赖): Latin Modern Math 无原生粗体,
+% 改用同源 (Computer Modern 一脉) 的 NewCM Math Bold; 缺此行则 \boldsymbol 静默失效 (不报错)。
+\setmathfont[version=bold]{NewCMMath-Bold.otf}
 \usepackage[bb=ams]{mathalpha}
+% 伪代码 (《算法导论》体例): Cormen 自带的 clrscode3e, \begin{codebox} + \li 编号行。
+\usepackage{clrscode3e}
 \usepackage{longtable,booktabs,array}
 \usepackage{enumitem}
 \setlist{nosep}

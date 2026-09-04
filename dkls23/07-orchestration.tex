@@ -114,8 +114,16 @@ P_i(X) &:= c_{i,0} + c_{i,1}X + \cdots + c_{i,t-1}X^{t-1}, \\
 收齐 $j$ 的通信内容后，重新计算 $\mathrm{Com}_{1,j}$，比对与 Round 1 所收到的是否相等。
 以及，验证所有 DLog 证明。
 
-最后，计算全局多项式承诺 $\mathbf{F}:=\sum_j \mathbf{F}_j$。
-这就是全局多项式 $P:=\sum_j P_j$ 的群承诺。私钥为常数项 $P(0)$，公钥为常数项 $\mathbf{F}(0)$。
+最后，把各方揭示的 Feldman 向量逐坐标点加，聚合出全局多项式承诺：
+\begin{equation}
+\label{eq:07-orchestration:feld-agg}\tag{F-agg}
+\mathbf{F} := \sum_{j\in\mathbb{K}} \mathbf{F}_j
+= \Bigl(\textstyle\sum_j c_{j,0}\cdot G,\ \cdots,\ \sum_j c_{j,t-1}\cdot G\Bigr).
+\end{equation}
+
+这就是全局多项式 $P:=\sum_j P_j$ 的群承诺。
+记“在指数上求值”为 $\mathbf{F}(z) := \sum_{w\in[0,t)} z^w \cdot \mathbf{F}[w]$，
+则 $\mathbf{F}(z) = P(z)\cdot G$。私钥为常数项 $P(0)$，公钥为常数项 $\mathbf{F}(0)$。
 
 \subsubsection{Endemic OT 收尾，PPRF 建树，Shamir 划分私钥}
 
@@ -126,17 +134,17 @@ P_i(X) &:= c_{i,0} + c_{i,1}X + \cdots + c_{i,t-1}X^{t-1}, \\
 若 $i>j$，还需计算这两方之间的盲化项 $\epsilon_{i,j}$，供 Pre-sign 协议进行“在随机化”。
 \begin{align}
 \label{eq:07-orchestration:shamir-share}\tag{shamir}
-d_{i,j} &:= P_i(j) \\
+d_{i,j} &:= P_i(j), \\
 \label{eq:07-orchestration:symmetric-blind}\tag{sym-blind}
 \epsilon_{i,j} &\stackrel{\$}{\leftarrow} \left\{0,1\right\}^{256}\quad (i>j).
 \end{align}
 
-之后，跟其他参与方 $j$ 调用 Endemic OT，$i$ 作为 Sender。
+跟其他参与方 $j$ 调用 Endemic OT，$i$ 作为 Sender。
 输入为 Endemic OT Receiver 消息，即刚刚收到的 $R_{j,i}^0, R_{j,i}^1$。
 输出为 Base OT 密钥对 $\rho^0_{\ell,j,i}, \rho^1_{\ell,j,i}, \ell\in[0, \kappa)$，
 以及 Endemic OT Sender 消息，这里记为 $M_{\ell,j,i}^0, M_{\ell,j,i}^1$。
 
-之后，构建和证明 $\kappa/k$ 棵 PPRF 树，第 $h$ 棵树有：
+构建和证明 $\kappa/k$ 棵 PPRF 树，第 $h$ 棵树有：
 \begin{itemize}
 \item
   所有叶子 $G: z \mapsto \mathcal{T}^k_z$，共 $2^k$ 个叶子。
@@ -158,217 +166,148 @@ d_{i,j} &:= P_i(j) \\
   PPRF Sender 消息：$t_{h}^0, t_{h}^1, \tilde t_{h,j,i}, \tilde s_{h,j,i}$。
 \end{itemize}
 
-之后，验证来自 $j$ 的 $\mathbf{F}$ 等于自己算的 $\mathbf{F}$。
-验证 $d_{j,i} \cdot G \stackrel{?}{=} \mathbf{F}_j(i)$。
+对每个参与方 $j$ 进行如公式
+\eqref{eq:07-orchestration:echo-check} 和 \eqref{eq:07-orchestration:share-check} 的验证。
+公式 \eqref{eq:07-orchestration:echo-check} 的用意是确保各方产生一致的 $\mathbf{F}$，
+从而产生一致的公钥；式中 $\mathbf{F}^{(j)}$ 是参与方 $j$ 发来的聚合承诺；
+$\mathbf{F}$ 是按公式 \eqref{eq:07-orchestration:feld-agg} 本地算出的聚合承诺。
+公式 \eqref{eq:07-orchestration:share-check} 的用意是检查 $j$ 发来的 Shamir 份额的诚实性，
+确保份额由他所承诺的多项式产生。
+\begin{align}
+\label{eq:07-orchestration:echo-check}\tag{echo}
+\mathbf{F}^{(j)} &\stackrel{?}{=}
+\mathbf{F} = \sum_{w\in\mathbb{K}} \mathbf{F}_w, \\
+\label{eq:07-orchestration:share-check}\tag{share}
+d_{j,i} \cdot G &\stackrel{?}{=}
+\mathbf{F}_j(i) = \sum_{w\in[0,t)} i^w \cdot \mathbf{F}_j[w].
+\end{align}
 
-之后，跟其他参与方 $j$ 继续执行 Endemic OT，自己作为 Receiver。
+把两个子协议 Endemic OT 和 PPRF 执行完。
+首先跟其他参与方 $j$ 继续执行 Endemic OT，自己作为 Receiver：
 对每个 $\ell\in[0, \kappa)$，
 输入 $R_{i,j}^0, R_{i,j}^1, M_{\ell,i,j}^0, M_{\ell,i,j}^1$，
 输出 Base OT 密钥 $\rho^{\beta_\ell}_{\ell,i,j}$。
-
-之后，跟其他参与方 $j$ 执行 PPRF，自己作为 Receiver。
-对每个 $\ell\in[0, \kappa)$，
+然后跟其他参与方 $j$ 执行 PPRF，自己作为 Receiver：
+对每个 Base OT 实例编号 $\ell\in[0, \kappa)$，
 输入 $\rho^{\beta_\ell}_{\ell,i,j}, \tilde t_{\ell,i,j}, \tilde s_{\ell,i,j}$。
-对每个 $h\in[0, \kappa/k)$，输出打孔位置 $y_{h,i,j}$ 与打孔叶子 $G^*_{h,i,j}$。
+对每棵 PPRF 树编号 $h\in[0, \kappa/k)$，输出打孔位置 $y_{h,i,j}$ 与打孔叶子 $G^*_{h,i,j}$。
 
-本节直接和间接提到了一些证明步骤。
-如果这些证明都通过，则聚合生成本方 Shamir 份额 $x_i$，如公式 \eqref{eq:07-orchestration:3} 所示。
+如果公式 \eqref{eq:07-orchestration:echo-check}、\eqref{eq:07-orchestration:share-check}，
+或子协议 Endemic OT、PPRF 中的检验失败，则立即 abort。
+如果这些检验都通过，则聚合生成本方 Shamir 份额 $x_i$ 如公式 \eqref{eq:07-orchestration:xi}。
 \begin{equation}
   \label{eq:07-orchestration:xi}
   \tag{xi}
   x_i := \sum_{j\in [n]} d_{j,i} = P(i).
 \end{equation}
 
-\begin{enumerate}
-\def\labelenumi{(\arabic{enumi})}
-\setcounter{enumi}{5}
-\item
-  执行 Endemic OT Receiver。具体来说，
-  消费自己创造的 $R_{*,i,j}$ 以及参与方 $j$ 发来的 $M_{*,i,j}$，
-  计算 $\kappa$ 个 Base OT 密钥 $\rho^{\beta_\ell}_{\ell,i,j}$
-  （$\ell\in[\kappa]$）。
-\item
-  执行 EvalPPRF，
-  用上述密钥配合 $j$ 发来的 $\tilde t_{\ell,i,j}, \tilde s_{\ell,i,j}$，
-  算“打孔后的全员叶子”。此即 sign 阶段 SoftSpoken Sender 一侧的种子
-（$i$ 持 $\Delta$ 部分）。
-\item
-  聚合本方份额
-\end{enumerate}
-
-
 \subsubsection{公开最终份额}
 
 每个参与方 $i$：
 
-\begin{enumerate}
-\def\labelenumi{(\arabic{enumi})}
+获取公钥 $Y := F(0)$，即向量 $\mathbf{F}$ 的首项。
+计算 $S_i := x_i \cdot G$ 并出具相应的 DLog 证明 $\pi_i$。
 
-\item
-  算份额对应群点 $S_i := x_i \cdot G$ 以及相应的 DLog 证明 $\pi_i$。
-\end{enumerate}
+【通信】广播 $S_i$，$\pi_i$。
 
-（exchange）广播 $S_i$，$\pi_i$，$Y$。
-
-\begin{enumerate}
-\def\labelenumi{(\arabic{enumi})}
-\setcounter{enumi}{1}
-
-\item
-  做这些检验：
-\end{enumerate}
-
-\begin{itemize}
-
-\item
-  检验所有 $\pi_j$。
-\item
-  检验所有 $Y$ 一致。
-\item
-  Lagrange 重构验公钥：
-\end{itemize}
+然后检验所有 DLog 证明 $\pi_j$，以及用拉格朗日插值重构公钥，
+如公式 \eqref{eq:07-orchestration:lagrange-interp} 等号右边。
 \begin{align}
-\label{eq:07-orchestration:lagrange-coef}\tag{coef}
-\lambda(j,S) &:= \prod_{k\in S\setminus\{j\}} \frac{-k}{j - k}, \\
-Y &\phantom{:}\stackrel{?}{=} \sum_{j\in S}\lambda(j,S) \cdot S_j.
+  \label{eq:07-orchestration:lagrange-coef}\tag{coef}
+  \lambda(j,S) &:= \prod_{k\in S\setminus\{j\}} \frac{-k}{j - k}, \\
+  \label{eq:07-orchestration:lagrange-interp}\tag{interp}
+  Y &\phantom{:}\stackrel{?}{=} \sum_{j\in S}\lambda(j,S) \cdot S_j.
 \end{align}
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
-\section{Pre-sign --- 3 轮}
+\section{Pre-sign}
 
 目标：把跟消息 $m$ 无关的所有协议步骤一次性跑完，
 产出每方的 PreSignature。之后绑定任意 $m$ 输出签名只需一轮广播（见第 3 章）。
 
-ECDSA 签名公式回顾：
+ECDSA 签名公式回顾（伪代码，全局视角）：
 
-\begin{itemize}
+\begin{codebox}
+\Procname{$\proc{Sign}(m)$}
+\li $k \gets \sum_{i \in S} r_i$
+\li $R \gets k \cdot G$
+\li $r \gets R.\mathrm{x} \bmod n$
+\li $s \gets (k\phi)^{-1}\bigl(m\phi + r\,x'\phi\bigr)$ \Comment 乘积 $k\phi$、$x'\phi$ 由 MtA 兑现为加法份额
+\li \Return $(r, s)$
+\end{codebox}
 
-\item
-  $R := (\sum_i r_i)\, G$，$r$ 是 $R$ 的横坐标；
-\item
-  $s := (k\phi)^{-1}(m\phi+rx'\phi)$，其中 $x'=x+\nabla x$。
-  两个乘积 $k\phi$，$x'\phi$ 由「MtA 与 Base OT」的 MtA 兑现。
-\end{itemize}
+其中 $x' := x + \nabla x$。
 
 \subsection{规格}
 
-【输入】
+【输入】参与方 $i$ 输入 Keyshare、签名者集合 $\mathbb{S}$，BIP-32 私钥偏移量 $\nabla x$。
+无需消息哈希 $m$，其在 Sign 阶段绑定。
 
-\begin{itemize}
-
-\item
-  各方的 Keyshare；
-\item
-  签名者集合 $S$，要求 $|S|\ge t$；
-\item
-  BIP-32 私钥偏移量 $\nabla x$，默认为 0。
-\end{itemize}
-
-无需消息哈希 $m$：$m$ 推迟到 Sign 阶段绑定。
-
-【输出】每方 $i$ 持有
+【输出】每方 $i$ 获得预签名结构体，如公式 \eqref{eq:07-orchestration:presig}。
+其中 $r$ 是 ECDSA 签名的 $r$ 字段，全员一致；
+$s_{1,i}$ 已经是最终值，待 Sign 阶段直接广播；
+$s_{0,i}^\circ$ 是未绑 $m$ 的中间值，待 Sign 阶段叠加 $m\cdot\phi_i$；
+$\phi_i$ 本方私有，用于 Sign 时绑定一个 $m$。
 \begin{equation}
 \label{eq:07-orchestration:presig}\tag{presig}
 \mathrm{PreSignature}_i := \bigl(r,\, s_{1,i},\, s_{0,i}^\circ,\, \phi_i\bigr).
 \end{equation}
 
-其中：
-
-\begin{itemize}
-
-\item
-  $r$ 是 ECDSA 签名的 $r$ 字段，全员一致；
-\item
-  $s_{1,i}$ 已经是最终值，待 Sign 阶段直接广播；
-\item
-  $s_{0,i}^\circ$ 是未绑 $m$ 的中间值，待 Sign 阶段叠加 $m\cdot\phi_i$；
-\item
-  $\phi_i$ 本方私有，用于 Sign 时绑 $m$。
-\end{itemize}
-
 【安全承诺】
 
 \begin{itemize}
-
 \item
-  各方的分片 $r_i$，$x'_i$，$\phi_i$ 全程保密，MtA 份额单看均匀随机；
+  秘密分片 $r_i$，$x'_i$，$\phi_i$ 不泄露。
+\item
+  MtA 份额在不知情者看来是均匀随机的。
 \item
   $\Gamma$ 一致性检查把各方喂给 RVOLE 的输入与广播的 $R_j, Y_j$ 绑住，
   transcript hash $d$ 维护全员视图一致，掺假即 abort。
 \end{itemize}
 
-警告：PreSignature 一次性消费。同一份 PreSignature
-用两条不同 $m$ 绑定会立即泄露 $\phi_i$，进而泄露 $x'$ 的本方分片。
-用户要保证“已绑过的 PreSignature 立刻销毁”。
+【安全警告】PreSignature 应当用后即焚。
+如果给同一份 PreSignature 绑定两条不同 $m$ ，则立即泄露 $\phi_i$，进而泄露 $x'$ 的本方分片。
 
 \subsection{实施}
-\subsubsection{\texorpdfstring{摇 nonce，提交 $R_i$}{摇 nonce，提交 R\_i}}
 
-每个参与方 $i$：
+每个参与方 $i\in\mathbb{S}$：
 
-\begin{enumerate}
-\def\labelenumi{(\arabic{enumi})}
+\subsubsection{第 1 轮}
 
-\item
-  摇随机：
-\end{enumerate}
+获取随机 nonce 分片 $r_i \stackrel{\$}{\leftarrow} \mathbb{Z}_n^*$、
+MtA 盲化分片 $\phi_i \stackrel{\$}{\leftarrow} \mathbb{Z}_n^*$。
 
-\begin{itemize}
-
-\item
-  摇 nonce 分片 $r_i \stackrel{\$}{\leftarrow} \mathbb{Z}_n^*$；
-\item
-  摇盲化分片 $\phi_i \stackrel{\$}{\leftarrow} \mathbb{Z}_n^*$，用于随机 MtA；
-\item
-  承诺 $R_i := r_i \cdot G$。
-\end{itemize}
-
-\begin{enumerate}
-\def\labelenumi{(\arabic{enumi})}
-\setcounter{enumi}{1}
-
-\item
-  计算衍生分片：
-\end{enumerate}
-\begin{equation}\label{eq:07-orchestration:4}
-x'_i := \lambda(i,S)\cdot x_i + \zeta_i + \nabla x \cdot |S|^{-1}.
+计算衍生分片 $x'_i$，如公式 \eqref{eq:07-orchestration:xi-derived}。
+式中 $\lambda(i,S)\cdot x_i$ 是拉格朗日插值后的私钥分片；
+$\zeta_i$ 是随机掩码，满足 $\sum_{i\in S} \zeta_i = 0$；
+$\nabla x$ 是 BIP-32 偏移量，系数 $|S|^{-1}$ 把偏移量均摊到每个签名方。
+\begin{equation}
+  \label{eq:07-orchestration:xi-derived}\tag{xi-derived}
+  x'_i := \lambda(i,S)\cdot x_i + \zeta_i + \nabla x \cdot |S|^{-1}.
 \end{equation}
 
-三项分别是：其一，拉格朗日插值后的私钥分片；其二，随机掩码 $\zeta_i$
------- 前一项在 $S$ 固定时是恒定的，多次签名后泄露风险上升，
-为此叠加一层各方之和为 0 的掩码，详见「杂记：再随机化」；其三，BIP-32
-偏移量，均摊到每个签名方。
-
-\begin{enumerate}
-\def\labelenumi{(\arabic{enumi})}
-\setcounter{enumi}{2}
-\item
-  算本方公钥分片 $Y_i := x'_i \cdot G$。
-  算派生公钥 $Y' := Y + \nabla x \cdot G$。
-\item
-  摇盲化 $\varepsilon_{R,i} \in \mathbb{B}^{256}$，算 $R_i$ 承诺
-\end{enumerate}
-\begin{equation}\label{eq:07-orchestration:5}
-\mathrm{Com}_{R,i} := \mathrm{Hash}(\mathrm{sid}, i, R_i, \varepsilon_{R,i}).
+对 $R_i := r_i \cdot G$ 做哈希承诺如公式 \eqref{eq:07-orchestration:com-Ri}，
+式中 $\varepsilon_{R,i} \stackrel{\$}{\leftarrow} \left\{0,1\right\}^{256}$ 为盲化项。
+\begin{equation}
+  \label{eq:07-orchestration:com-Ri}\tag{Com-Ri}
+  \mathrm{Com}_{R,i} := \mathrm{Hash}(\mathrm{sid}, i, R_i, \varepsilon_{R,i}).
 \end{equation}
 
-（exchange）广播 $\mathrm{Com}_{R,i}$。
+【通信】广播 $\mathrm{Com}_{R,i}$。
 
-\begin{enumerate}
-\def\labelenumi{(\arabic{enumi})}
-\setcounter{enumi}{4}
-
-\item
-  计算全员 transcript hash $d$，将在 Round 3 维护各方的一致性。
-\end{enumerate}
-\begin{equation}\label{eq:07-orchestration:6}
-d := \mathrm{Hash}(\mathrm{sid}, Y', \mathrm{Com}_{R,1}, \cdots, \mathrm{Com}_{R,|S|}).
+本地计算全体 $R_j, j\in\mathbb{S}$ 的哈希 $d$ 如公式 \eqref{eq:07-orchestration:com-hash}，
+其将在 Round 3 维护各方的一致性。式中 $Y' := Y+\nabla x \cdot G$ 为衍生公钥。
+\begin{equation}
+  \label{eq:07-orchestration:com-hash}\tag{com-hash}
+  d := \mathrm{Hash}\left(
+    \mathrm{sid}, Y', \left\{\mathrm{Com}_{R,j} : j \in \mathbb{S}\right\}
+  \right).
 \end{equation}
 
 \subsubsection{SoftSpoken Receiver 和 RVOLE Sender}
 
-每个参与方 $i$ 对其他签名者 $j\in S\setminus\{i\}$：
+与其他签名者 $j\in \mathbb{S}\setminus\{i\}$：
 
 \begin{enumerate}
 \def\labelenumi{(\arabic{enumi})}
