@@ -21,17 +21,17 @@
 拿到这些密钥后，兑现随机 MtA 关系 $y + z := w\beta \pmod n$。其中 Sender 输入 $w$，输出 $y$；
 Receiver 输入 $\beta$，输出 $z$。注意本协议不兑现 ECDSA MtA 关系 $y + z := wx \pmod n$。
 
-DKLs23 把消除 $\beta$ 的工作交给 ECDSA 编排层，这是一个安全手段。
-若直接让 Receiver 输入 ECDSA 乘法份额 $x$，那么选择串就是 $x$ 的编码，
-进而恶意 Sender 可以发动 selective failure 攻击，泄露 $x$ 的比特；
-这里就是 Sender 在个别实例 $j$ 中猜测 $\beta_j$，并在猜错时 abort。
-换成随机 $\vec\beta$ 后有两重保险：
+DKLS23 使用随机乘法因子 $\beta$，再由 ECDSA 编排层将其转换为所需的乘法关系。
+若直接以长期秘密的比特作为 OT 选择位，恶意 Sender 可以让检验结果依赖某些选择位，
+并借助外层可观察的成功或失败结果探测这些比特，这称为 selective failure。
+本协议每次使用新鲜随机的 $\vec\beta$，避免反复探测同一条选择串；
+但新鲜性本身不能证明聚合值 $\beta$ 在泄露后仍接近均匀，也不能替代外层的失败处理。
+参见\href{https://eprint.iacr.org/2023/765.pdf}{DKLS23 Protocol 5.2、\S6.1 及 Protocol 3.6 第 8～9 步}。
 
-\begin{itemize}
-  \item $\vec\beta$ 一次一换，泄露不跨会话累积；
-  \item gadget 编码留有 $2\lambda_s$ 比特富余熵（$L = \kappa + 2\lambda_s = 512$），
-  即便个别 $\beta_j$ 败露，聚合值 $\beta$ 对 Sender 仍统计均匀（DKLs23 援引的依据是 Impagliazzo-Naor 子集和引理）。
-\end{itemize}
+这里需区分三个对象：OT 选择串 $\vec\beta$、聚合标量 $\beta$，以及攻击造成的通过或失败事件。
+$L=\kappa+2\lambda_s$ 为随机子集和聚合提供统计安全余量，不能理解为允许任意泄露 $2\lambda_s$ 比特。
+原文同时控制攻击的通过概率与通过条件下的分布偏差，再证明真实执行可由理想功能模拟。
+下面的\hyperref[sec:rvole:selective-failure]{selective failure 安全边界}集中列出结论与文献位置。
 
 兑现 MtA 关系有以下两种思路：
 
@@ -63,9 +63,10 @@ z &:= \sum_j M^{\beta_j}_j \pmod{n}.
 \subsection{另类路线：把密钥直接解读为随机数}
 
 既然消息和密钥都是随机的，
-我们不如把 $\rho_j^0, \rho_j^1$ 直接解读成 $\mathbb{Z}_n$ 标量 \eqref{eq:06-rvole:alphas}。
+我们把 $\rho_j^0, \rho_j^1$ 扩展为 $\mathbb{Z}_n$ 标量，如公式 \eqref{eq:06-rvole:alphas}。
+这里的扩展及域采样遵循\hyperref[sec:rvole:parameters-model]{完全版的参数与模型约定}，不能把短密钥直接取模当作均匀域元素。
 \begin{equation}\label{eq:06-rvole:alphas}
-\alpha_j^0,\alpha_j^1 := \rho_j^0, \rho_j^1 \pmod n.
+\alpha_j^b := \mathrm{PRF}^{\mathbb Z_n}_{\rho_j^b}\bigl(\mathrm{Enc}(\mathtt{sid},\texttt{"ot-pad"},j,0)\bigr),\quad b\in\{0,1\}.
 \end{equation}
 
 Sender 拥有 $\alpha_j^0,\alpha_j^1$，以及秘密因子 $w$。
@@ -144,7 +145,8 @@ z := \sum_j g_j \cdot t_j \pmod{n}.
 
 恶意 Sender 可能对不同的 OT 实例 $j$ 使用不同的 $w' \neq w$，
 破坏 MtA 关系 $y + z = w \cdot \beta \pmod n$ 的正确性。
-为此，我们约定每个 OT 实例携带 $N_2$ 个负载用于校验。DKLs23 论文取 $N_2 = 1$。
+为此，我们约定每个 OT 实例携带 $N_2$ 个负载用于校验。
+$N_2$ 对应原文的参数 $\rho$，取值由下述安全参数决定，并非固定为 1。
 决定引入校验维度以后，将使 RVOLE 内部运算变得向量化。既然如此，
 不妨继续引入 $(N_1-1)$ 个 MtA 关系。对于 ECDSA 签名，有 $N_1=2$。
 
@@ -153,6 +155,61 @@ z := \sum_j g_j \cdot t_j \pmod{n}.
 y_{i}+z_{i} := w_{i}\cdot \beta \pmod n,
 \quad i \in [0,\, N_1). \tag{batch-mta}
 \end{equation}
+
+\subsection{参数、编码与安全模型}
+\label{sec:rvole:parameters-model}
+
+【参数】本文标量域为 $\mathbb Z_n$，其中 $n$ 是素数阶，$\kappa=\lceil\log_2 n\rceil$。
+$\lambda_c$ 与 $\lambda_s$ 分别是计算安全参数和统计安全参数，不能与模数位宽混为一谈。
+\href{https://eprint.iacr.org/2023/765.pdf}{DKLS23 Protocol 5.2} 的记号与本文对应如下：
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+含义 & 原文 & 本文 \\
+\midrule
+标量模数 & $q$ & $n$ \\
+功能负载数 & $\ell$ & $N_1$ \\
+OT 实例数 & $\xi$ & $L=\kappa+2\lambda_s$ \\
+校验负载数 & $\rho$ & $N_2=\lceil\kappa/\lambda_c\rceil$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+本文以 $\kappa=256$、$\lambda_c=\lambda_s=128$ 为具体参数示例，得到 $L=512$、$N_2=2$。
+ECDSA 同时计算两个乘积，因此 $N_1=2$，每个 OT 实例共携带四个域元素。
+若改取 $\lambda_c=\kappa=256$，按上述原文公式才有 $N_2=1$，哈希输出长度也须随之调整。
+这些是 RVOLE 的参数设置；提高其中一个参数并不会提高其他组件或整套 ECDSA 的安全强度。
+
+【域与采样】所有 $w_k,\alpha^b_{j,k},\tilde a_{j,k},\theta_{k,i},\eta_k,\mu_{j,k},y_i,z_i$
+均为 $\mathbb Z_n$ 元素，所有标量运算均模 $n$；最终摘要 $\mu$ 是比特串。
+理想 OT 扩展接口直接提供独立均匀的域元素向量。
+短 OT 密钥 $\rho_j^b$ 是实现该接口的种子，本文用以它为密钥的 $\mathrm{PRF}^{\mathbb Z_n}_{\rho_j^b}$ 表示域值扩展，
+同一实例的 Receiver 只计算所选种子的扩展值。
+实际扩展可由带域分离的密码学伪随机流实现：逐次读取 $\kappa$ 比特，解释为整数，拒绝不小于 $n$ 的值。
+在理想随机流下，该拒绝采样精确均匀；实际密码学扩展只提供计算上的伪随机性。
+因此，不能将「理想接口中的独立均匀」直接称为实际短种子扩展的无条件独立均匀。
+
+【公开随机量】gadget 向量按 $\boldsymbol g\stackrel{\$}{\leftarrow}\mathbb Z_n^L$ 产生并公开，
+采用原文 Protocol 5.2 脚注 a 的可信公共随机串设置，可跨实例复用。
+若以公共种子和哈希实现，则须采用域分离和上述域采样，并在相应随机预言机模型下分析。
+挑战 $\theta$ 是由公开 transcript 决定的随机预言机输出，双方都能重算，不是带秘密密钥的 PRF。
+下文以 $\mathrm{RO}_{\mathbb Z_n^{N_2\times N_1}}$ 表示均匀域矩阵输出，
+以 $\mathrm{RO}_{\{0,1\}^{2\lambda_c}}$ 表示用于压缩校验材料的摘要输出。
+两种用途分别使用标签 \texttt{"challenge"} 与 \texttt{"check"}；示例参数下摘要长 256 比特。
+参见\href{https://eprint.iacr.org/2023/765.pdf}{Protocol 5.2 第 3～4 步及 Claim 6.7}。
+
+【编码】$\mathrm{Enc}$ 表示无歧义编码，包含协议版本、域与维度参数，以及各字段的长度或类型。
+域元素以 $[0,n)$ 的代表元作定长大端编码；数组按索引递增排列，矩阵先行后列。
+具体地，$\tilde a$ 按 $j$、$k$ 排列，$\eta$ 按 $k$ 排列，校验矩阵按 $j$、$k$ 排列。
+数组不得按无序集合序列化；消息中的维度、元素范围和编码不合法时即拒绝。
+$\mathtt{sid}$ 唯一标识含有向双方身份的 RVOLE 实例，重试使用新实例号与新选择串。
+
+【安全模型】以下引用的定理针对理想向量 OT 扩展和不可编程全局随机预言机模型，
+允许静态腐化至多一方的恶意多项式时间攻击者。
+实际使用 SoftSpoken 与短种子扩展时，以其满足所需向量 OT 扩展接口的计算安全性为前提；
+仅仅把一个函数命名为 PRF 或 Hash，不能替代这一前提。
+因此，本文的隐私承诺是相对于理想功能及组合假设的计算不可区分性，允许中止及可忽略误差，
+而不是对任意哈希实现的「零泄露」断言。
+依据见\href{https://eprint.iacr.org/2023/765.pdf}{\S5.1、Theorem 6.1、Lemmas 6.2 与 6.11}。
 
 \subsection{规格}
 
@@ -167,8 +224,9 @@ Receiver 持有秘密选项串 $\vec\beta \in \left\{0,1\right\}^L$，
 Sender 获得 $N_1$ 个秘密加项 $y_i$。
 Receiver 获得 $N_1$ 个秘密加项 $z_i$，使得等式 $\eqref{eq:06-rvole:batch-mta}$ 成立。
 
-【安全承诺】$w_i$ 对 Receiver 保密，零泄露。
-$\vec\beta$ 对 Sender 保密；允许恶意 Sender 赌个别比特，赌的越多 abort 概率越高。
+【安全承诺】在上述模型与组合假设下，Receiver 获得的视图不泄露超出理想功能所允许的信息。
+对恶意 Sender，安全目标是实现随机 VOLE 理想功能，允许中止；不承诺原始选择串绝不泄露。
+selective failure 的概率与泄露边界见\hyperref[sec:rvole:selective-failure]{下文专节}。
 逐条核对见 2.3 节。
 
 \subsection{实施}
@@ -185,16 +243,16 @@ Sender 首先对 OT 密钥 $\rho_j^b$ 进行衍生，
 Sender 计算加法份额，如公式 \eqref{eq:06-rvole:yi}。
 \begin{align}\label{eq:06-rvole:extkey}
 \tag{extkey}
-\alpha^b_{j,k} &:= \mathtt{PRF}\left(
-\mathtt{sid},j,k, \rho^b_j
-\right),
+\alpha^b_{j,k} &:= \mathrm{PRF}^{\mathbb Z_n}_{\rho_j^b}\bigl(
+\mathrm{Enc}(\mathtt{sid},\texttt{"ot-pad"},j,k)
+\bigr)\in\mathbb Z_n,
 b\in\left\{0,1\right\}.
 \\
 \tilde{a}_{j,k} &:= \alpha^0_{j,k}-\alpha^1_{j,k}+w_{k}.
 \\
 \label{eq:06-rvole:offset}
 \tag{offset}
-\tilde a &:= \left\{ \tilde a_{j,k}~:~ \forall j,k\right\}
+\tilde a &:= (\tilde a_{j,k})_{j\in[0,L),\,k\in[0,N_1+N_2)}.
 \\
 \label{eq:06-rvole:yi}
 \tag{yi}
@@ -214,18 +272,21 @@ Sender 首先从已知信息派生出挑战向量 $\theta_k$，如公式 \eqref{
 以及哈希响应，如公式 \eqref{eq:06-rvole:resp-ha}。
 \begin{align}
 \label{eq:06-rvole:ch}\tag{ch}
-\theta_k &:= \mathtt{PRF}(\mathtt{sid},\, k,\, \tilde a) \in \mathbb{Z}_n^{N_1}.
+(\theta_k)_{k\in[N_1,N_1+N_2)}
+&:= \mathrm{RO}_{\mathbb Z_n^{N_2\times N_1}}\bigl(
+\mathrm{Enc}(\mathtt{sid},\texttt{"challenge"},\tilde a)\bigr).
 \\
 \label{eq:06-rvole:resp-lin}\tag{resp-lin}
 \eta_k &:= w_{k}+\sum_{i\in[0,N_1)}\theta_{k,i}\cdot w_{i} \pmod n,
 \\
-\eta &:= \left\{ \eta_k ~:~  \forall k\right\}
+\eta &:= (\eta_k)_{k\in[N_1,N_1+N_2)}.
 \\
 \mu_{j,k} &:= \alpha^0_{j,k}
   +\sum_{i\in[0,N_1)}\theta_{k,i}\cdot \alpha^0_{j,i},
 \\
 \label{eq:06-rvole:resp-ha}\tag{resp-ha}
-\mu &:= \mathrm{Hash}\left(\mathtt{sid},\, \left\{\mu_{j,k} ~:~ \forall j,k\right\}\right).
+\mu &:= \mathrm{RO}_{\{0,1\}^{2\lambda_c}}\bigl(
+\mathrm{Enc}(\mathtt{sid},\texttt{"check"},(\mu_{j,k})_{j,k})\bigr).
 \end{align}
 
 最后，Sender 发送 $\tilde a$，$\eta$，$\mu$。
@@ -243,8 +304,7 @@ t_{j,k} &:= \alpha^{\beta_j}_{j,k}+\beta_j\cdot \tilde{a}_{j,k}, \\
 &= \alpha^0_{j,k}+\beta_j\cdot w_{k}~,
 \end{align}
 
-重放所有 $\theta_k$，也就是对每个 $j$ 和每个校验负载 $k \in [N_1, N_1+N_2)$ 
-计算公式 \eqref{eq:06-rvole:ch}。
+先按公式 \eqref{eq:06-rvole:ch} 重放完整的挑战矩阵 $(\theta_k)_k$，所有 OT 实例共享该矩阵。
 之后，对每个 $j$ 和每个校验负载 $k$，计算公式 \eqref{eq:06-rvole:mu-hat}，
 检验 $\hat\mu\stackrel{?}{=}\mu$。
 如果检验通过，那么 Receiver 对每个功能负载 $i$ 计算本地份额如公式 \eqref{eq:06-rvole:zi}。
@@ -254,9 +314,9 @@ t_{j,k} &:= \alpha^{\beta_j}_{j,k}+\beta_j\cdot \tilde{a}_{j,k}, \\
 - \beta_j\cdot\eta_k, 
 \\
 \label{eq:06-rvole:mu-hat}
-\hat\mu &:= \mathtt{Hash}\left(
-  \mathtt{sid},\, \left\{\hat\mu_{j,k} ~:~ \forall j,k\right\}
-\right).
+\hat\mu &:= \mathrm{RO}_{\{0,1\}^{2\lambda_c}}\bigl(
+  \mathrm{Enc}(\mathtt{sid},\texttt{"check"},(\hat\mu_{j,k})_{j,k})
+\bigr).
 \\
 \label{eq:06-rvole:zi}\tag{zi}
 z_{i} &:= \sum_{j}g_j\cdot t_{j,i} ~.
@@ -265,7 +325,7 @@ z_{i} &:= \sum_{j}g_j\cdot t_{j,i} ~.
 最后，Receiver 本地保存 $z_{i}$。
 
 \subsection{核对安全承诺}
-\subsubsection{\texorpdfstring{$w_i$ 对 Receiver 零泄露}{w\_i对 Receiver 零泄露}}
+\subsubsection{\texorpdfstring{$w_i$ 对 Receiver 的隐私}{w 对 Receiver 的隐私}}
 
 Receiver 的视图为：单侧 OT 密钥 + Sender
 的唯一消息 $(\tilde a, \eta, \mu)$。逐项检查是否含有 $w$ 的信息。
@@ -278,16 +338,46 @@ $\eta_k$ 含有关于 $w_i, i\in [0,N_1)$ 的线性组合，
 但被新鲜随机的 $w_k, k\in [N_1, N_1+N_2)$ 遮蔽。
 （3）$\mu$ 不含 $w_k$。
 
-\subsubsection{\texorpdfstring{$\vec\beta$ 对 Sender 保密，泄露有上限}{\textbackslash vec\textbackslash beta对 Sender 保密，泄露有上限}}
+\subsubsection{selective failure 的安全边界}
+\label{sec:rvole:selective-failure}
 
-Receiver 的 $\vec\beta$ 进入 Sender 视图的唯一方式是“abort 与否”
-这一个比特。
+【攻击能获知什么】恶意 Sender 可以构造错误消息，使检验是否通过依赖他猜测的选择位。
+如果外层暴露检验结果，一次针对单个位的探测便可能确定该位；
+若同时猜测多个位，通过意味着这些猜测全部命中，失败通常只说明至少一个猜测不对。
+因此，不能把一个成功或失败标志解释为「每次执行最多泄露一个指定比特」，
+也不能把失败解释为逐项返回所有被猜错的位置。
+原文对这类攻击的刻画见\href{https://eprint.iacr.org/2023/765.pdf}{\S6.1，Hybrid $H_3$ 与 Claims 6.4、6.8}。
 
-诚实 Sender 恒通过。而对于作弊 Sender，
-每个受攻击的实例 $j$ 至多泄露一个 $\beta_j$，其只有一比特；
-代价是 1/2 概率当场 abort。即便若干 $\beta_j$ 败露，
-也有 gadget 向量的 $2\lambda_s$ 富余熵保证聚合值 $\beta$ 仍统计均匀。
-况且 $\vec\beta$ 一次一换，泄露不跨会话累积。
+【通过概率与剩余熵】沿用原文，令 $\Delta$ 表示校验偏差可能使检验结果依赖选择位的位置集合，
+记 $d=|\Delta|$；它是证明中定义的集合，不是协议输出的泄露位置列表。
+在原文 $H_5$ 的条件下，Claim 6.8 给出通过概率至多 $2^{-d}$。
+对于 $d\le2\lambda_s$ 且两实验均通过的情形，Claim 6.10 对 $H_5$ 与 $H_6$ 给出条件统计距离上界
+\begin{equation}
+  2^{-(L-\kappa-d)/2}+LQ\,2^{-\lambda_c},
+\end{equation}
+其中 $Q$ 是攻击者的随机预言机查询次数，本文 $L$ 对应原文 $\xi$。
+第一项随 $d$ 增大而变差；当 $d=2\lambda_s$ 时，该项已为 1，不能据此声称通过后仍接近均匀。
+这两个界属于原文的混合实验，不能省略前提后当成任意实现、任意外部泄露的通用保证。
+参见 \href{https://eprint.iacr.org/2023/765.pdf}{DKLS23 Claims 6.7～6.10，正文第 50～52 页}。
+
+【最终保证】证明把通过概率、通过时的条件距离及失败分支合起来，控制完整执行的区分优势。
+结论允许罕见的通过事件携带较强信息，并不要求每个条件分布都保持同样的统计安全参数。
+上述子集和估计要求原文规定的公开随机 gadget 分布，不能仅从「向量比标量长」推出。
+其统计工具是 Impagliazzo 与 Naor 的子集和估计，即 [IN96] Proposition 1.1 第 2 部分；
+具体应用及两分支的合并见
+\href{https://eprint.iacr.org/2023/765.pdf}{DKLS23 Claim 6.5、Claim 6.10 与 Hybrid $H_6$ 末尾}。
+[IN96] 为 Russell Impagliazzo、Moni Naor，
+《Efficient Cryptographic Schemes Provably as Secure as Subset Sum》，
+Journal of Cryptology，9（4）：199～216，1996。
+
+【外层与多会话】不能假定 Sender 的完整视图只多出一个 abort 比特。
+Protocol 5.2 在采样阶段就把聚合标量交给环境；证明因此必须处理环境已获知 $\beta$ 的联合视图，
+包括它与检验结果、输出份额的相关性，而不是继续把 $\beta$ 当作对环境隐藏的秘密。
+安全结论见 \href{https://eprint.iacr.org/2023/765.pdf}{Lemma 6.2、Theorem 6.1}：
+在理想 OT 扩展及不可编程全局随机预言机模型下，对静态腐化的恶意多项式时间攻击者实现 UC 安全。
+本文的参数对应与实际实例化前提已在\hyperref[sec:rvole:parameters-model]{参数、编码与安全模型}中列明。
+每次重新采样选择串只能避免直接复用该串；ECDSA 的长期密钥安全还依赖外层协议及其失败处理，
+尤其是 \href{https://eprint.iacr.org/2023/765.pdf}{Protocol 3.6 第 8～9 步}规定的关联会话终止与后续拒绝交互。
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
@@ -357,17 +447,16 @@ $w_i, i\in[0,N_1)$ 不能明文申报。一个经典技巧是申报所有 $w_i$ 
 
 $\theta$ 必须在 Sender 固定 $\tilde a$（等价于固定全部 $w_{j,k}$）
 之后才可知，否则 Sender 可以挑选对他有利的 $\theta$。
-采用 Fiat-Shamir 之后，作弊 Sender 想过检只有两条路：
+原文分别处理偏差被随机挑战掩盖，以及偏差使检验依赖选择位这两种情形。
+下面只说明攻击机会；完整的模拟论证见\href{https://eprint.iacr.org/2023/765.pdf}{DKLS23 \S6.1}。
 
 \begin{itemize}
-  \item \textbf{研磨（grinding）}：
-  这是一条跟哈希安全性死磕的路。
-  反复重选 $\tilde a$，直到摇出的 $\theta$ 恰好使所有偏差组合为零。
-  \item \textbf{猜比特（selective failure）}：
-  这是一条绕过哈希安全性的路。
-  Sender 不再期待猜中整个 $\vec\beta$，只期待猜中某些 $\beta_j$。
-  每一位猜中的概率为 $1/2$，猜错即 abort。
-  注意到 Receiver 的实际秘密为标量 $\beta$，而参与协议的是 gadget 之后的、更长的比特向量
-  $\vec\beta=\sum_{j=0}^{L-1} \beta_j \cdot g_j$；
-  这意味着 gadget 稀释了 $\beta$ 的信息量，从而提高 selective failure 的难度。
+  \item 【研磨（grinding）】Sender 反复重选 $\tilde a$，寻找能掩盖偏差的挑战。
+  攻击机会随随机预言机查询次数增长；原文 Claim 6.7 对单个偏差位置给出 $Q\,2^{-\lambda_c}$ 的界。
+  这依赖原文的挑战分布与校验参数，不能仅凭「使用了哈希」断言研磨不可行。
+  \item 【选择性失败（selective failure）】即使偏差没有被挑战掩盖，Sender 仍可能猜中有关选择位而通过。
+  猜错导致检验失败；多个位置只产生整体检验结果，不逐项报告。
+  较长的随机选择串为子集和估计提供余量，却不保证任意条件泄露后聚合值仍均匀。
+  通过概率与条件距离的区别见\hyperref[sec:rvole:selective-failure]{selective failure 的安全边界}，
+  对应原文 Claims 6.8～6.10。
 \end{itemize}

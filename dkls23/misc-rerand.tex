@@ -1,63 +1,65 @@
 % !TEX root = misc-rerand.tex
 % title: 杂记：再随机化
 
+\section{零和掩码的作用}
 
-\section{\texorpdfstring{再随机化 $\zeta_i$}{再随机化\textbackslash zeta\_i}}
-
-Pre-sign
-阶段每方衍生分片 $x'_i := \lambda(i,S) x_i + \zeta_i + \nabla x \cdot |S|^{-1}$ 里的中间项。
-见 \texttt{07-orchestration.md} Pre-sign Round 1（2）。
-
-\subsection{问题}
-
-Pre-sign Round 2，每方喂给 RVOLE Sender
-的输入是 $(r_i, x'_i)$。$r_i$ 在每次签名里是新鲜的，这没问题。
-若 $x'_i$ 里没有 $\zeta_i$，它在 $S$ 和 $\nabla x$ 固定时完全确定。
-这意味着，同一签名者集合下，每次 RVOLE Sender 都喂同一个长期值进去。
-
-RVOLE Sender 的 SoftSpoken 一致性检查给恶意 Receiver
-的作弊概率上界是 $2^{-S}$ 每次，但在跨签名场景里，“有效泄露”能够累积。
-短期看不出来，长期下 Receiver 可以慢慢抠出 $x_i$ 的比特。
-
-工程上的对策：在 $x'_i$ 上再叠一层每签 fresh 的盲化 $\zeta_i$，让 RVOLE
-Sender 喂出去的值在每次签名里都是 fresh 随机数。
-
-\subsection{全局约束}
-
-$\zeta_i$ 是本方私有，但全员加起来必须满足 $\sum_{i\in S}\zeta_i = 0$。
-
-\subsection{构造}
-
-Keygen Round 3 时，
-每对 $i > j$ 摇了对称盲化项 $\epsilon_{i,j} \in \mathbb{B}^{256}$，
-双方都存。Sign 时双方对称地从这一颗种子派生一个只供这次签名用的标量：
-\begin{equation}\label{eq:misc-rerand:zeta-ij}
-\zeta_{i,j} := \mathrm{Hash}(\epsilon_{\max(i,j),\min(i,j)}, \mathrm{sid}, S) \in \mathbb{Z}_n. \tag{zeta-ij}
+Pre-sign 中，参与方 $i$ 将 Shamir 份额转换为衍生私钥的加法分片：
+\begin{equation}
+  x'_i:=\lambda(i,\mathbb{S})x_i+\zeta_i+\nabla x\cdot|\mathbb{S}|^{-1}.
 \end{equation}
+其中，$\zeta_i$ 是本次会话的零和掩码，满足 $\sum_{i\in\mathbb{S}}\zeta_i=0$。
+它调整各方的分片，同时保持 $\sum_{i\in\mathbb{S}}x'_i=x+\nabla x$。
+完整编排见「协议编排」的公式 \eqref{eq:orch:xi-derived}。
 
-然后用一个反对称权重把所有 pairwise $\zeta_{i,j}$ 拼成 $\zeta_i$：
-\begin{equation}\label{eq:misc-rerand:zeta}
-\zeta_i := \sum_{j\in S\setminus\{i\}} \mathrm{sgn}(i,j)\cdot \zeta_{i,j}, \quad
-\mathrm{sgn}(i,j) := \begin{cases} +1 & i > j \\ -1 & i < j \end{cases}. \tag{zeta}
+DKLS23 在第 3.1 节定义 $F_{\mathrm{Zero}}$，并在 Protocol 3.6 中用其输出再随机化私钥分片。
+下文采用其“双方承诺并揭示种子，再按会话派生”的构造思路，以比特串异或合成共享种子。
+原文见 \href{https://eprint.iacr.org/2023/765.pdf}{Threshold ECDSA in Three Rounds}。
+
+\section{Keygen：共同生成共享种子}
+
+对每个 $j\in\mathbb{K}\setminus\{i\}$，本方独立采样 256 比特贡献 $\epsilon^\circ_{i,j}$，
+以及承诺盲化串 $\nu_{i,j}$，按公式 \eqref{eq:orch:seed-com} 生成承诺。
+双方先交换承诺，收齐后再经双方之间的认证保密信道交换贡献与盲化串。
+承诺绑定本次 Keygen 的会话号、双方编号及用途，揭示后必须验证。
+
+双方验证通过后，按公式 \eqref{eq:orch:symmetric-blind} 合成
+\begin{equation}
+  \epsilon_{i,j}:=\epsilon^\circ_{i,j}\oplus\epsilon^\circ_{j,i}=\epsilon_{j,i}.
 \end{equation}
+每方对每个对端只保存一份合成后的共享种子，作为 Keyshare 的一部分。
+先承诺再揭示，使一方无法在看到对方贡献后改变自己的贡献来指定合成结果。
+若对方拒绝揭示、揭示长度不符或承诺验证失败，则中止本次 Keygen，不使用未完成的 Keyshare。
 
-妙处 1：全局加起来是 0
+\section{Pre-sign：派生成对标量并反对称求和}
 
-原因：对每对 $\{i, j\}$，较大编号那方加 $+\zeta_{i,j}$，
-较小编号那方加 $-\zeta_{i,j}$。全员求和时抵消掉。
+本次签名集合为 $\mathbb{S}\subseteq\mathbb{K}$，双方事先约定本次 Pre-sign 的会话号 $\mathrm{sid}$。
+共享种子可以复用，但每次 Pre-sign 的会话号必须不同。
+对每个 $j\in\mathbb{S}\setminus\{i\}$，双方各自计算
+\begin{equation}
+  \label{eq:misc-rerand:zeta-ij}\tag{zeta-ij}
+  \begin{aligned}
+    \zeta_{i,j}&:=\mathrm{HashToScalar}\bigl(
+      \texttt{"zero\_mask"},\mathrm{sid},\mathbb{S}, \\
+      &\hspace{5em}\min(i,j),\max(i,j),\epsilon_{i,j}\bigr)\in\mathbb{Z}_n.
+  \end{aligned}
+\end{equation}
+这里 $\mathrm{HashToScalar}$ 视作输出到标量域的随机预言机，实现时可采用 XOF 与拒绝采样。
+输入采用无歧义编码，其中 $\mathbb{S}$ 按编号递增排列。
+由于双方使用相同的种子、会话信息和编号顺序，有 $\zeta_{i,j}=\zeta_{j,i}$。
 
-妙处 2：不需要通信
+本方再按编号大小取正负号，得到自己的零和掩码：
+\begin{equation}
+  \label{eq:misc-rerand:zeta}\tag{zeta}
+  \zeta_i:=\sum_{\substack{j\in\mathbb{S}\\j<i}}\zeta_{i,j}
+  -\sum_{\substack{j\in\mathbb{S}\\j>i}}\zeta_{i,j}.
+\end{equation}
+对每对参与方，编号较大的一方加上该标量，编号较小的一方减去同一个标量。
+全员求和时各项两两抵消，因此 $\sum_i\zeta_i=0$。
+派生只用已有共享种子和一致的公开输入，故本次 Pre-sign 无需为零和掩码增加通信。
 
-原因：每对 $\zeta_{i,j}$ 只用到 keygen
-时已经共享的 $\epsilon_{i,j}$ 和公开的 $\mathrm{sid}, S$。
-双方独立算同样的值，sign 阶段不需要为此发任何消息。
+\section{性质的适用范围}
 
-\subsection{理论 vs 工程}
-
-DKLS23 论文证明 sign 在任意多签下安全，严格意义上不需要 $\zeta_i$。
-本文的技巧是一项额外的加固，使得多次 RVOLE 一致性检查的 union bound
-永远拿不到 $x_i$ 的任何比特，因为 Receiver
-看到的输入每次都已经被新鲜的 $\zeta_i$ 混淆掉。
-
-什么是 union bound? 简单理解就是，多次执行协议，每次泄露一点点信息，
-累积起来就极大地降低了破解信息的难度。
+零和关系是上述公式的代数性质，共享种子的生成则需要承诺、揭示与验证。
+承诺约束贡献的选择时机，但不能阻止恶意方拒绝揭示，所以协议仍允许中止。
+某一对参与方都知道彼此共享的种子；掩码对恶意联盟的隐藏性质还取决于联盟掌握哪些种子。
+完整签名协议的多会话安全应依据原文的组合证明，不能仅由零和关系或每次使用不同会话号推出。

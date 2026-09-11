@@ -9,11 +9,12 @@ Endemic OT 产出 Base OT 种子，PPRF 和 SoftSpokenOT 把种子扩展成海�
 【协议参数】
 
 \begin{itemize}
-
 \item
-  总参与方 $n$，阈值 $t$，签名参与方 $|S| \ge t$。
+  参与方集合 $\mathbb{K}$，元素 $i\in\mathbb{Z}_n^*$，一般为从 1 开始的连续整数。
 \item
   参与方编号 $i \ge 1$ 同时也是 Lagrange 插值点，视作 $\mathbb{Z}_n^*$ 元素。
+\item
+  阈值 $t$，满足签名参与方数量 $\left| \mathbb{S} \right| \ge t$。
 \item
   $\mathtt{sid}$ 是协议外部输入，全员事先约定。
 \item
@@ -30,12 +31,53 @@ Endemic OT 产出 Base OT 种子，PPRF 和 SoftSpokenOT 把种子扩展成海�
 对宾语中的变量名进行变换「把下标 $i$ 改名为 $j$、$j$（如果有）改名为 $i$」，
 隐式声明这些变量为本方接收的消息。
 
+【检查级别与失败处理备查】
+\label{sec:orch:failure-levels}
+
+本文用 K、S、P 区分失败的作用范围，并在相关段落开头标注【检查-K】、【检查-S】或【检查-P】。
+这些字母是本文的编排记号，不是 DKLS23 原文的错误码，也不表示失败已经证明某方作弊。
+各类失败都立即停止受影响的执行，向调用方报告失败，销毁该执行的临时秘密状态，且不输出其结果。
+通过认证信道向本次参与方发送绑定会话号的失败通知；通知中不包含秘密份额、OT 密钥或种子。
+通知是终止信号，不是可转交的作弊证据；收到通知的一方不得仅凭通知发送者的身份将其停用。
+
+\begin{description}
+\item[【检查-K】Keygen 失败。]
+  适用于初始化中的承诺、DLog 证明、Feldman 份额、Endemic OT 与 PPRF 检验。
+  中止本次 Keygen，销毁本次生成的秘密材料，不输出或使用未完成的 Keyshare。
+  拒绝揭示、揭示长度不符，以及收到本次 Keygen 的失败通知，也按此处理。
+  若重新生成密钥，使用新的 Keygen 会话号和全新的初始化随机数。
+\item[【检查-S】单次签名失败。]
+  中止本次 PreSign 或 Sign，废弃对应预签名及临时材料；保留既有 Keyshare。
+  适用于总点为无穷远点、$r$ 或 $s$ 无效、签名分母为零、最终验签失败，
+  以及收到本次签名的失败通知；仅凭这些结果不新增停用对端。
+  若重试，须新建 PreSign 会话并重新采样，不能复用失败的预签名。
+\item[【检查-P】停用对端并终止关联会话。]
+  先执行 S 类处理，再将涉及的对端集合 $B$ 记入本方针对当前 Keyshare 的持久停用记录。
+  若本地失败可归于与 $j$ 的具体交互，则 $B:=B\cup \{j\}$；这表示停止交互，不等于公开归责。
+  对本方所有涉及 $B$ 中任一方的并发签名会话，停止继续计算并在相应协议位置发送失败通知。
+  同时废弃本方所有涉及这些对端的待用预签名，拒绝后续与这些对端共同签名。
+  不涉及这些对端的会话可以继续；更换 PreSign 会话号不能清除停用记录。
+\end{description}
+
+P 类处理以 DKLS23 Protocol 3.6 第 8 步为依据，涵盖 RVOLE 失败与逐对 $\Gamma$ 等式失败。
+第 9 步规定收到失败通知时终止本次签名，第 10 步规定最终验签失败时报告本次失败，均归入 S 类。
+原文第 8 步还要求聚合公钥一致，但这个聚合等式本身不能定位某个对端。
+本文对无法定位的聚合公钥或 transcript 不一致，保守取 $B=\mathbb S\setminus\{i\}$；
+这会连带停用无辜对端，是本文明确采用的可用性取舍，不能据此声称已识别作弊者。
+具体实现中的 SoftSpoken 验证失败与 nonce 承诺揭示失败，也采用 P 类处理。
+这些实现层面的停用范围是本文补充的保守规则，不应表述为原文逐项给出的归责机制。
+原文参见\href{https://eprint.iacr.org/2023/765.pdf}{第 3 节，Protocol 3.6}。
+
+等待消息本身不等于检验失败：异步网络中的延迟不能证明对方拒绝发送。
+若调用方因超时取消，Keygen 按 K 类、签名按 S 类收尾，不据此新增停用对端。
+S 类重试必须同时服从已有的 P 类停用记录；本文不提供清除记录、重新接纳对端的恢复流程。
+
 \section{分布式密钥生成（DKG、Keygen）}
 
 \subsection{规格}
 
-【输入】公开输入：参与方数量 $n$，签名所需最少参与方数量（门限） $t$，
-参与方编号集合 $\mathbb{K}$，本方编号 $i$，会话编号 $\mathtt{sid}$。
+【输入】公开输入：参与方集合 $\mathbb{K}$，签名所需最少参与方数量（门限） $t$，
+本方编号 $i\in\mathbb{K}$，会话编号 $\mathtt{sid}$。
 
 【输出】每方 $i$ 获得 Keyshare，内含：
 
@@ -46,14 +88,16 @@ Endemic OT 产出 Base OT 种子，PPRF 和 SoftSpokenOT 把种子扩展成海�
   编号 $i$，同时也是多项式的求值点；
 \item
   私钥分片 $x_i := P(i)$，即全局秘密多项式 $P$ 在自己编号处的求值，
-  满足 $x=\sum_{j\in S}\lambda(j,S)\cdot x_j$，插值系数见式 \eqref{eq:orch:lagrange-coef}；
+  满足 $x=\sum_{j\in\mathbb{S}}\lambda(j,\mathbb{S})\cdot x_j$，插值系数见式 \eqref{eq:orch:lagrange-coef}；
 \item
   针对每个 $j\ne i$ 以及树编号 $h\in[0,\kappa/k)$，
   保存本方作为 PPRF Sender 的 $\mathcal{A}_{h,i,j}$，
   以及作为 PPRF Receiver 的 $\bigl(y_{h,i,j}, \mathcal{A}^*_{h,i,j}\bigr)$，
   供 Sign 阶段的 SoftSpoken 取用；
 \item
-  针对每对有序 $(i, j), j < i$ 的对称盲化项 $\epsilon_{i,j}$，供 Pre-sign 派生再随机化掩码。
+  针对每个 $j\in\mathbb{K}\setminus\{i\}$，
+  保存零和掩码分片 $\epsilon_{i,j}$，供协议 PreSign 派生零和掩码。
+  两方保存同一个值，也就是说 $\epsilon_{i,j}=\epsilon_{j,i}$。
 \end{itemize}
 
 【安全承诺】
@@ -62,12 +106,12 @@ Endemic OT 产出 Base OT 种子，PPRF 和 SoftSpokenOT 把种子扩展成海�
 \item
   不足 $t$ 方的联盟对私钥 $x$ 一无所知；
 \item
-  作弊会被 hash 承诺、DLog 证明、Feldman 验证与 PPRF 验证抓住，当场 abort。
+  【检查-K】hash 承诺、DLog 证明、Feldman 与 PPRF 验证失败时，执行 K 类处理。
 \end{itemize}
 
 \subsection{实施}
 
-\subsubsection{Feldman 承诺}
+\subsubsection{Feldman 承诺与零和掩码种子承诺}
 \label{sec:orchestration:round1}
 
 本方生成一个 $t-1$ 次随机多项式 $P_i \in \mathbb{Z}_n[X]$，
@@ -98,9 +142,24 @@ P_i(X) &:= c_{i,0} + c_{i,1}X + \cdots + c_{i,t-1}X^{t-1}, \\
 \right).
 \end{align}
 
-最后，本方广播 $\mathrm{Com}_{1,i}$，接收其他各方的 $\mathrm{Com}_{1,j}$。
+【检查-K】本方还要为每个 $j\in\mathbb{K}\setminus\{i\}$ 独立采样种子贡献 $\epsilon^\circ_{i,j}$，
+以及用于隐藏承诺内容的随机串 $\nu_{i,j}$，两者均为 256 比特。
+这里的 $\epsilon^\circ_{i,j}$ 属于本方，$\epsilon^\circ_{j,i}$ 属于对方，二者无需相等。
+它们将在揭示并验证后合成为同一个共享种子 $\epsilon_{i,j}$。
+\begin{align}
+  \label{eq:orch:seed-contribution}\tag{seed-contribution}
+  \epsilon^\circ_{i,j},\nu_{i,j}
+  &\stackrel{\$}{\leftarrow}\{0,1\}^{256}, \\
+  \label{eq:orch:seed-com}\tag{seed-com}
+  \mathrm{Com}_{\epsilon,i,j}
+  &:=\mathrm{Hash}\left(
+    \mathrm{sid},i,j,\texttt{"zero\_seed"},\epsilon^\circ_{i,j},\nu_{i,j}
+  \right).
+\end{align}
 
-\subsubsection{启动 Endemic OT，揭示 Feldman 承诺}
+【交换】 $\mathrm{Com}_{1,i}, \mathrm{Com}_{\epsilon,i,j}$。
+
+\subsubsection{启动 Endemic OT，揭示 Feldman 与种子承诺}
 
 本方为 $P_i$ 的每个系数制作 DLog 证明。
 
@@ -108,19 +167,36 @@ P_i(X) &:= c_{i,0} + c_{i,1}X + \cdots + c_{i,t-1}X^{t-1}, \\
 输入 $\boldsymbol{\beta}_{i,j} \in \left\{0,1\right\}^\kappa$，即 Base OT 选择位向量。
 输出 $R_{i,j}^0, R_{i,j}^1$，是子协议中途产生的通信消息。
 
-本方与其他参与方 $j$ 收发：
+【交换】
 \begin{itemize}
 \item
   Shamir 相关的消息，即 $\mathbf{F}_i, \varepsilon_{1,i}$ 以及 DLog 证明。
-  接收其他各方的 $\mathbf{F}_j, \varepsilon_{1,j}$ 以及 DLog 证明。
 \item
   Endemic OT Receiver 消息，即 $R_{i,j}^0, R_{i,j}^1$。
-  接收其他各方的 $R_{j,i}^0, R_{j,i}^1$。
+\item
+  揭示“零和掩码分片的承诺”：$\epsilon^\circ_{i,j},\nu_{i,j}$。
 \end{itemize}
 
-本方按 \eqref{eq:orch:feld-com} 重新计算 $\mathrm{Com}_{1,j}$，
-比对与 \hyperref[sec:orchestration:round1]{第一轮} 所收到的是否相等。
-以及，验证所有 DLog 证明。
+【检查-K】本方按 \eqref{eq:orch:feld-com} 重新计算 $\mathrm{Com}_{1,j}$，
+检查与 \hyperref[sec:orchestration:round1]{第一轮} 所收到的是否相等。
+本方按公式 \eqref{eq:orch:seed-com}，交换 $i,j$ 后重算 $\mathrm{Com}_{\epsilon,j,i}$，
+检查对方揭示的 $\epsilon^\circ_{j,i},\nu_{j,i}$
+与 \hyperref[sec:orchestration:round1]{第一轮} 所收到的承诺一致。
+以及，检查所有 DLog 证明。
+
+【检查-K】所有检查通过后，本方将两个贡献逐位异或，得到公式 \eqref{eq:orch:symmetric-blind} 的共享种子。
+双方按同一公式计算，因而各自保存的 $\epsilon_{i,j}$ 与 $\epsilon_{j,i}$ 相等。
+\begin{equation}
+  \label{eq:orch:symmetric-blind}\tag{sym-blind}
+  \epsilon_{i,j}:=\epsilon^\circ_{i,j}\oplus\epsilon^\circ_{j,i}
+  =\epsilon_{j,i}.
+\end{equation}
+
+先承诺再揭示，使一方无法在看到对方贡献后再改变自己的贡献，以指定合成结果。
+
+【检查-K】恶意方仍可能拒绝揭示；拒绝揭示、揭示长度不符或承诺验证失败时，执行 K 类处理。
+共享种子随成功生成的 Keyshare 持久保存，后续 PreSign 使用它派生各次会话的掩码。
+这一初始化方式对应 DKLS23 第 3.1 节中 $F_{\mathrm{Zero}}$ 的构造说明。
 
 最后，把各方揭示的 Feldman 向量加起来，得到全局多项式承诺 $\mathbf{F}$：
 \begin{equation}
@@ -135,15 +211,12 @@ P_i(X) &:= c_{i,0} + c_{i,1}X + \cdots + c_{i,t-1}X^{t-1}, \\
 
 \subsubsection{Endemic OT 收尾，PPRF 建树，Shamir 划分私钥}
 
-本方计算与其他方之间的 Shamir 私钥份额 $d_{i,j}$，
-如公式 \eqref{eq:orch:shamir-share}。
-若 $i>j$，还需计算这两方之间的盲化项 $\epsilon_{i,j}$，供 Pre-sign 协议进行“再随机化”。
-\begin{align}
+本方计算每个参与方对应的 Shamir 私钥份额 $d_{i,j}$，
+如公式 \eqref{eq:orch:shamir-share}，其中 $d_{i,i}$ 在本地保留。
+\begin{equation}
 \label{eq:orch:shamir-share}\tag{shamir}
-d_{i,j} &:= P_i(j), \\
-\label{eq:orch:symmetric-blind}\tag{sym-blind}
-\epsilon_{i,j} &\stackrel{\$}{\leftarrow} \left\{0,1\right\}^{256}\quad (i>j).
-\end{align}
+d_{i,j} := P_i(j), ~\forall j\in\mathbb{K}.
+\end{equation}
 
 本方作为 Sender，跟其他方调用子协议 Endemic OT，只执行到 Sender 备好消息。
 输入为 $R_{j,i}^0, R_{j,i}^1$。
@@ -161,7 +234,7 @@ d_{i,j} &:= P_i(j), \\
   这样取名是因为，L（对应英语 leaf）和 F（对应法语 feuille）都已经被高频地占用。}
   \begin{equation}
     \tag{all-leaves}\label{eq:orch:all-leaves}
-    \mathcal{A}_{h,i,j} := \left\{\left(\mathcal{T}_{h,i,j}) : z\in[0, 2^k\right)\right\}.
+    \mathcal{A}_{h,i,j} := \left\{\left(\mathcal{T}_{h,i,j}\right)^k_z ~:~ z\in[0, 2^k)\right\}.
   \end{equation}
 \item
   除第一层以外，每一层有选 0 修正值和选 1 修正值。
@@ -175,14 +248,14 @@ d_{i,j} &:= P_i(j), \\
 以及对 Base OT 实例编号 $\ell \in [0, \kappa)$，交换：
 \begin{itemize}
 \item
-  Shamir 相关的消息：$d_{i,j}, \epsilon_{i,j}, \mathbf{F}$。
+  Shamir 相关的消息：$d_{i,j}, \mathbf{F}$。
 \item
   Endemic OT Sender 消息：$M_{\ell,j,i}^0, M_{\ell,j,i}^1$。
 \item
   PPRF Sender 消息：$t_{h,i,j}^0, t_{h,i,j}^1, \tilde t_{h,i,j}, \tilde s_{h,i,j}$。
 \end{itemize}
 
-对其他参与方进行如公式
+【检查-K】对其他参与方进行如公式
 \eqref{eq:orch:echo-check} 和 \eqref{eq:orch:share-check} 的验证。
 公式 \eqref{eq:orch:echo-check} 的用意是确保各方产生一致的 $\mathbf{F}$，
 从而产生一致的公钥；式中 $\mathbf{F}^{(j)}$ 是参与方 $j$ 发来的聚合承诺；
@@ -202,20 +275,22 @@ d_{j,i} \cdot G &\stackrel{?}{=}
 本方首先作为 Receiver 与其他各方继续执行 Endemic OT。
 对每个 $\ell\in[0, \kappa)$，
 输入 $R_{i,j}^0, R_{i,j}^1, M_{\ell,i,j}^0, M_{\ell,i,j}^1$，
-输出 Base OT 密钥 $\rho^{\beta_\ell}_{\ell,i,j}$。
+输出 Base OT 密钥 $\rho^{\beta_{\ell,i,j}}_{\ell,i,j}$。
 
 本方然后作为 Receiver 与其他各方继续执行 PPRF。
-对每个 Base OT 实例编号 $\ell\in[0, \kappa)$，
-输入 $\rho^{\beta_\ell}_{\ell,i,j}, \tilde t_{\ell,i,j}, \tilde s_{\ell,i,j}$。
-对每棵 PPRF 树编号 $h\in[0, \kappa/k)$，输出打孔位置 $y_{h,i,j}$ 与打孔叶子 $\mathcal{A}^*_{h,i,j}$。
+对每棵 PPRF 树编号 $h\in[0, \kappa/k)$，
+输入对应的 $k$ 个 Base OT 选择位与单侧密钥
+$\bigl(\beta_{\ell,i,j},\rho^{\beta_{\ell,i,j}}_{\ell,i,j}\bigr)_{\ell\in[hk,(h+1)k)}$，
+以及收到的修正向量 $t^0_{h,j,i},t^1_{h,j,i}$ 和证明材料 $\tilde t_{h,j,i},\tilde s_{h,j,i}$。
+输出打孔位置 $y_{h,i,j}$ 与打孔叶子 $\mathcal{A}^*_{h,i,j}$。
 
-如果公式 \eqref{eq:orch:echo-check}、\eqref{eq:orch:share-check}，
-或子协议 Endemic OT、PPRF 中的检验失败，则立即 abort。
+【检查-K】如果公式 \eqref{eq:orch:echo-check}、\eqref{eq:orch:share-check}，
+或子协议 Endemic OT、PPRF 中的检验失败，则执行 K 类处理。
 如果这些检验都通过，则聚合生成本方 Shamir 份额 $x_i$ 如公式 \eqref{eq:orch:xi}。
 \begin{equation}
   \label{eq:orch:xi}
   \tag{xi}
-  x_i := \sum_{j\in [n]} d_{j,i} = P(i).
+  x_i := \sum_{j\in\mathbb{K}} d_{j,i} = P(i).
 \end{equation}
 
 \subsubsection{公开最终份额}
@@ -225,35 +300,41 @@ d_{j,i} \cdot G &\stackrel{?}{=}
 
 交换 $S_i$，$\pi_i$。
 
-然后检验所有 DLog 证明 $\pi_j$，以及用拉格朗日插值重构公钥，
+【检查-K】然后检验所有 DLog 证明 $\pi_j$，以及用拉格朗日插值重构公钥，
 如公式 \eqref{eq:orch:lagrange-interp} 等号右边。
 \begin{align}
   \label{eq:orch:lagrange-coef}\tag{coef}
-  \lambda(j,S) &:= \prod_{k\in S\setminus\{j\}} \frac{-k}{j - k}, \\
+  \lambda(j,\mathbb{S}) &:= \prod_{k\in\mathbb{S}\setminus\{j\}} \frac{-k}{j - k}, \\
   \label{eq:orch:lagrange-interp}\tag{interp}
-  Y &\phantom{:}\stackrel{?}{=} \sum_{j\in S}\lambda(j,S) \cdot S_j.
+  Y &\phantom{:}\stackrel{?}{=} \sum_{j\in\mathbb{S}}\lambda(j,\mathbb{S}) \cdot S_j.
 \end{align}
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
-\section{Pre-sign}
+\section{PreSign}
 
 目标：把跟消息 $m$ 无关的所有协议步骤一次性跑完，
 产出每方的 PreSignature。之后绑定任意 $m$ 输出签名只需一轮广播（见第 3 章）。
 
-ECDSA 签名公式回顾（伪代码，全局视角）：
+【检查-S】ECDSA 签名公式回顾（伪代码，全局视角）：
 
 \begin{codebox}
 \Procname{$\proc{Sign}(m)$}
-\li $k \gets \sum_{i \in S} r_i$
+\li $k \gets \sum_{i \in\mathbb{S}} r_i$
+\li $\phi \gets \sum_{i \in\mathbb{S}} \phi_i$
 \li $R \gets k \cdot G$
+\li 若 $R=\mathcal O$，则 \Return $\bot$
 \li $r \gets R.\mathrm{x} \bmod n$
+\li 若 $r=0$ 或 $k\phi=0 \pmod n$，则 \Return $\bot$
 \li $s \gets (k\phi)^{-1}\bigl(m\phi + r\,x'\phi\bigr)$
 \Comment 乘积 $k\phi$、$x'\phi$ 由 MtA 兑现为加法份额
+\li 若 $s=0$，则 \Return $\bot$
 \li \Return $(r, s)$
 \end{codebox}
 
-其中 $x' := x + \nabla x$。
+【检查-S】其中 $x' := x + \nabla x$，标量运算均在 $\mathbb Z_n$ 中进行。
+$\mathcal O$ 表示椭圆曲线的无穷远点，$\bot$ 表示本次尝试失败。
+返回失败时须废弃本次预签名状态；具体检查位置及重试规则见下文。
 
 \subsection{规格}
 
@@ -278,8 +359,8 @@ $\phi_i$ 本方私有，用于 Sign 时绑定一个 $m$。
 \item
   MtA 份额在不知情者看来是均匀随机的。
 \item
-  $\Gamma$ 一致性检查把各方喂给 RVOLE 的输入与广播的 $R_j, Y_j$ 绑住，
-  transcript hash $d$ 维护全员视图一致，掺假即 abort。
+  【检查-P】$\Gamma$ 一致性检查把各方喂给 RVOLE 的输入与广播的 $R_j, Y_j$ 绑住，
+  transcript hash $d$ 用于核对全员视图；失败时执行 P 类处理。
 \end{itemize}
 
 【安全警告】PreSignature 应当用后即焚。
@@ -293,34 +374,44 @@ $\phi_i$ 本方私有，用于 Sign 时绑定一个 $m$。
 MtA 盲化分片 $\phi_i \stackrel{\$}{\leftarrow} \mathbb{Z}_n^*$。
 
 计算衍生分片 $x'_i$，如公式 \eqref{eq:orch:xi-derived}。
-式中 $\lambda(i,S)\cdot x_i$ 是拉格朗日插值后的私钥分片；
-$\zeta_i$ 是由 Keyshare 中的共享盲化项派生的再随机化掩码，
+式中 $\lambda(i,\mathbb{S})\cdot x_i$ 是拉格朗日插值后的私钥分片；
+$\zeta_i$ 是由 Keyshare 中的共享种子派生的零和掩码，
 详见公式 \eqref{eq:orch:zeta-pair} 和 \eqref{eq:orch:zeta}；
-$\nabla x$ 是 BIP-32 偏移量，系数 $|S|^{-1}$ 把偏移量均摊到每个签名方。
+$\nabla x$ 是 BIP-32 偏移量，系数 $|\mathbb{S}|^{-1}$ 把偏移量均摊到每个签名方。
 \begin{equation}
   \label{eq:orch:xi-derived}\tag{xi-derived}
-  x'_i := \lambda(i,S)\cdot x_i + \zeta_i + \nabla x \cdot |S|^{-1}.
+  x'_i := \lambda(i,\mathbb{S})\cdot x_i + \zeta_i + \nabla x \cdot |\mathbb{S}|^{-1}.
 \end{equation}
 
-Keygen 时，每对参与方共同保存了盲化项 $\epsilon_{\max(i,j),\min(i,j)}$。
-本次 Pre-sign 中，双方用它与公开的会话编号 $\mathrm{sid}$、签名者集合 $S$，
-派生同一个标量 $\zeta_{i,j}=\zeta_{j,i}$，如公式 \eqref{eq:orch:zeta-pair}。
-这里的 $\mathrm{sid}$ 每次 Pre-sign 都应不同，哈希输出映射到 $\mathbb{Z}_n$。
+协议 Keygen 已按公式 \eqref{eq:orch:symmetric-blind} 为每对参与方。
+本次 PreSign 中，对每个 $j\in\mathbb{S}\setminus\{i\}$，
+本方用 $\epsilon_{i,j}$ 与公开的会话信息派生同一个标量 $\zeta_{i,j}=\zeta_{j,i}$，
+如公式 \eqref{eq:orch:zeta-pair}。
+
 \begin{equation}
   \label{eq:orch:zeta-pair}\tag{zeta-pair}
-  \zeta_{i,j} := \mathrm{Hash}\left(
-    \epsilon_{\max(i,j),\min(i,j)}, \mathrm{sid}, S
-  \right) \in \mathbb{Z}_n.
+  \begin{aligned}
+    I, J &:= \min(i,j),\max(i,j); \\
+    \zeta_{i,j}&:=\mathrm{Hash}\bigl(
+      \texttt{"zero\_mask"},\mathrm{sid},\mathrm{sort}(\mathbb{S}),
+        I, J,\epsilon_{I, J}\bigr) \\
+    &\in\mathbb{Z}_n.
+  \end{aligned}
 \end{equation}
+
+式中 $\mathtt{sort}$ 是升序排序函数，确保 $\zeta_{i,j}$ 与 $\mathbb{S}$ 的顺序无关。
+该式引入参数 $\mathrm{sid}$，意味着 $\zeta_{i,j}$ 不可跨会话复用。
 
 本方按编号大小对这些标量取正负号，求和得到 $\zeta_i$：
 \begin{equation}
   \label{eq:orch:zeta}\tag{zeta}
-  \zeta_i := \sum_{\substack{j\in S\\j<i}} \zeta_{i,j}
-  - \sum_{\substack{j\in S\\j>i}} \zeta_{i,j}.
+  \zeta_i := \sum_{\substack{j\in\mathbb{S}\\j<i}} \zeta_{i,j}
+  - \sum_{\substack{j\in\mathbb{S}\\j>i}} \zeta_{i,j}.
 \end{equation}
-上式蕴含 $\sum_{i\in S}\zeta_i=0$，读者自行验算。这意味着
-本方无需通信即可独立地完成派生。
+对每对参与方，编号较大的一方加上 $\zeta_{i,j}$，编号较小的一方减去同一个值。
+因此，全员求和时各项两两抵消，保证 $\sum_{i\in\mathbb{S}}\zeta_i=0$，
+从而再随机化不改变各方衍生私钥分片的总和。
+派生过程只依赖已有的共享种子和双方一致的公开输入，所以 PreSign 无需为零和掩码增加通信。
 
 对 $R_i := r_i \cdot G$ 做哈希承诺如公式 \eqref{eq:orch:com-Ri}，
 式中 $\varepsilon_{R,i} \stackrel{\$}{\leftarrow} \left\{0,1\right\}^{256}$ 为盲化项。
@@ -329,7 +420,7 @@ Keygen 时，每对参与方共同保存了盲化项 $\epsilon_{\max(i,j),\min(i
   \mathrm{Com}_{R,i} := \mathrm{Hash}(\mathrm{sid}, i, R_i, \varepsilon_{R,i}).
 \end{equation}
 
-交换 $\mathrm{Com}_{R,i}$。
+【交换】 $\mathrm{Com}_{R,i}$。
 
 本地计算全体 $R_j, j\in\mathbb{S}$ 的哈希 $d$ 如公式 \eqref{eq:orch:com-hash}，
 其将在 Round 3 维护各方的一致性。式中 $Y' := Y+\nabla x \cdot G$ 为衍生公钥。
@@ -343,24 +434,28 @@ Keygen 时，每对参与方共同保存了盲化项 $\epsilon_{\max(i,j),\min(i
 \subsubsection{得到 MtA 加法 $y$-分片}
 
 本方作为 Receiver，与其他方调用子协议 SoftSpoken。
-输入 $\boldsymbol{\beta}_{j,i} \stackrel{\$}{\leftarrow} \left\{0,1\right\}^L$。
+输入 Keyshare 中的完整叶子 $\mathcal{A}_{h,i,j}$，其中 $h\in[0,\kappa/k)$，
+以及随机选择串 $\boldsymbol{\beta}_{j,i} \stackrel{\$}{\leftarrow} \left\{0,1\right\}^L$。
 生成待发送的消息 $u_{j,i}, \tilde{\beta}_{j,i}, \tau_{j,i}$。
+本地输出并保存单侧 OT 密钥 $\rho^{\beta_{\ell,j,i}}_{\ell,j,i}$，其中 $\ell\in[0,L)$，
+供后续 RVOLE Receiver 使用。
 
 计算向量 $\boldsymbol{\beta}_{j,i}$ 的 gadget 加权和，
 得到 $\beta_{j,i}:=\langle \boldsymbol{g}, \boldsymbol{\beta}_{j,i}\rangle \in \mathbb{Z}_n$。
 
 交换 $u_{j,i}, \tilde{\beta}_{j,i}, \tau_{j,i}$。
 
-然后，本方作为 Sender，与其他方调用子协议 SoftSpoken。
+【检查-P】然后，本方作为 Sender，与其他方调用子协议 SoftSpoken。
 输入 Keyshare 中的打孔位置与打孔叶子 $\bigl(y_{h,i,j}, \mathcal{A}^*_{h,i,j}\bigr)$，
 以及收到的 $u_{i,j}, \tilde{\beta}_{i,j}, \tau_{i,j}$。
 验证通过后，输出 $L$ 对 OT 密钥 $\rho^0_{\ell,i,j}, \rho^1_{\ell,i,j}$，
-其中 $h\in[0,\kappa/k)$，$\ell\in[0,L)$。验证失败则 abort。
+其中 $h\in[0,\kappa/k)$，$\ell\in[0,L)$。验证失败时，对该对端 $j$ 执行 P 类处理。
 
-然后，本方作为 Sender，与其他方调用子协议 RVOLE，详见「随机 VOLE」。
+【检查-P】然后，本方作为 Sender，与其他方调用子协议 RVOLE，详见「随机 VOLE」。
 秘密输入为 $(r_i,x'_i)$，并使用上述 OT 密钥对。
 输出修正矩阵 $\tilde a_{i,j}$、响应 $\eta_{i,j}$ 、哈希校验 $\mu_{i,j}$；
 以及 MtA 加法分片 $y^\mathtt{r}_{i,j}, y^\mathtt{x}_{i,j}$。
+这里生成校验材料，由对端的 Receiver 执行校验；失败处理见下文 RVOLE Receiver 步骤。
 \begin{equation}
   \label{eq:orch:rand-mta}\tag{rand-mta}
   \begin{aligned}
@@ -396,14 +491,20 @@ $\Gamma^\mathtt{x}_{i,j} := y^\mathtt{x}_{i,j} \cdot G$。
   一致性约束 $d$，详见公式 \eqref{eq:orch:com-hash}。
 \end{itemize}
 
-重新计算 $\mathrm{Com}_{R,j}$，检查与 Round 1 所收到的是否相等。
-检查各方发来的 $d$ 是否相等。
+【检查-P】重新计算 $\mathrm{Com}_{R,j}$，检查与 Round 1 所收到的是否相等。
+揭示失败时，对该对端 $j$ 执行 P 类处理。
 
-本方作为 Receiver，与其他方调用子协议 RVOLE。
-输入 $j$ 发来的 $\tilde a_{j,i}, \eta_{j,i}, \mu_{j,i}$，
-输出 MtA 加法分片 $z^\mathtt{r}_{j,i}, z^\mathtt{x}_{j,i}$。
+【检查-P】检查各方发来的 $d$ 与本地计算的 $d$ 是否相等。
+若不一致，按无法定位的情形执行 P 类处理，取 $B=\mathbb S\setminus\{i\}$。
 
-检查 $\Gamma$ 一致性如下式。
+【检查-P】本方作为 Receiver，与其他方调用子协议 RVOLE。
+输入本方的选择串 $\boldsymbol{\beta}_{j,i}$、单侧 OT 密钥
+$\bigl(\rho^{\beta_{\ell,j,i}}_{\ell,j,i}\bigr)_{\ell\in[0,L)}$，
+以及 $j$ 发来的 $\tilde a_{j,i}, \eta_{j,i}, \mu_{j,i}$，
+子协议须先通过 $\mu_{j,i}$ 的校验，才输出 MtA 加法分片 $z^\mathtt{r}_{j,i}, z^\mathtt{x}_{j,i}$。
+若子协议报告失败，则对该对端 $j$ 执行 P 类处理。
+
+【检查-P】检查 $\Gamma$ 一致性如下式；任一等式失败时，对相应对端 $j$ 执行 P 类处理。
 RVOLE 协议本身不保证输入的乘法分片是下游协议所需的。
 这就需要靠 $\Gamma$ 把 RVOLE 的输入 $r_j, x'_j$ 跟此前广播的 $R_j, Y_j$ 关联起来。
 \begin{align*}
@@ -411,18 +512,20 @@ RVOLE 协议本身不保证输入的乘法分片是下游协议所需的。
 \beta_{j,i} \cdot Y_j &\stackrel{?}{=} \Gamma^\mathtt{x}_{j,i} + z^\mathtt{x}_{j,i} \cdot G.
 \end{align*}
 
-此时已形成 ECDSA 签名 $r$ 字段，即
-\begin{align*}
-  R &:= R_i + \sum_{j\ne i} R_j, \\
-  r &:= R.\mathrm{x} \bmod n.
-\end{align*}
+【检查-P】检查派生公钥是否一致，即 $\sum_{j\in\mathbb{S}}Y_j \stackrel{?}{=} Y'$，
+其中 $Y_j:=x'_j G$。若不一致，取 $B=\mathbb S\setminus\{i\}$，执行 P 类处理。
 
-检查派生公钥是否一致，即 $\sum_{j\in S}Y_j \stackrel{?}{=} Y'$。
+【检查-S】先计算总点 $R := \sum_{j\in\mathbb S} R_j$，检查 $R\ne\mathcal O$。
+若 $R=\mathcal O$，则中止本次 PreSign，废弃本次临时状态，不能取其横坐标。
+检查通过后计算 $r := R.\mathrm{x} \bmod n$，取值范围为 $0\le r<n$。
+若 $r=0$，同样中止并废弃本次状态；只有 $1\le r<n$ 时才继续生成 PreSignature。
+各方独立采样的 $r_i$ 均非零，并不能保证总 nonce $k=\sum_{j\in\mathbb S}r_j$ 非零。
+
 然后计算 PreSignature 的两个分量，如公式 \eqref{eq:orch:presig-steps}。
 \begin{equation}
 \label{eq:orch:presig-steps}\tag{presig-steps}
 \begin{aligned}
-  \Phi_i &:= \phi_i + \sum_{j\ne i}\psi_{j\rightarrow i}, \\
+  \Phi_i &:= \phi_i + \sum_{j\ne i}\psi_{j,i}, \\
   V^\mathtt{r}_i &:= \sum_{j\ne i}(y^\mathtt{r}_{i,j} + z^\mathtt{r}_{j,i}), \\
   V^\mathtt{x}_i &:= \sum_{j\ne i}(y^\mathtt{x}_{i,j} + z^\mathtt{x}_{j,i}), \\
   s_{1,i} &:= r_i \cdot \Phi_i + V^\mathtt{r}_i, \\
@@ -434,60 +537,48 @@ RVOLE 协议本身不保证输入的乘法分片是下游协议所需的。
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
-\section{Sign --- 1 轮}
+\section{Sign 1 轮}
 
 目标：用消息哈希 $m$ 绑定 PreSignature，输出 ECDSA 签名 $(r, s)$。
 
 \subsection{规格}
 
 【输入】
-
 \begin{itemize}
-
 \item
-  每方持有自己的 PreSignature；
+  各方的 PreSignature；
 \item
-  消息哈希 $m \in \mathbb{Z}_n$。
+  各方相同的消息哈希 $m \in \mathbb{Z}_n$。
 \end{itemize}
 
 【输出】标准 ECDSA 签名 $(r, s)$，全员一致。
 
-【安全承诺】广播的 $(s_{0,i}, s_{1,i})$ 不泄露 $\phi_i$ 与私钥分片
------- 前提是 PreSignature 只用这一次（见 2.1 末尾的警告）。
+【安全承诺】广播的 $(s_{0,i}, s_{1,i})$ 不泄露 $\phi_i$ 与私钥分片，
+前提是「PreSignature 用完即弃」。
 
 \subsection{实施}
-\subsubsection{\texorpdfstring{绑 $m$ 并汇总}{绑 m 并汇总}}
 
-每方 $i$：
+【检查-S】本方先检查输入 PreSignature 中的 $r$ 满足 $1\le r<n$，否则废弃该预签名并中止。
+本方计算 $s_{0,i} := s_{0,i}^\circ + m \cdot \phi_i$。
+在发送签名份额之前，将该 PreSignature 标记为已使用，然后交换 $s_{0,i}, s_{1,i}$。
+无论本次 Sign 成功还是失败，该预签名均不得再次使用。
 
-\begin{enumerate}
-\def\labelenumi{(\arabic{enumi})}
-
-\item
-  算 $s_{0,i} := s_{0,i}^\circ + m \cdot \phi_i$。
-\end{enumerate}
-
-（exchange）广播 $(s_{0,i}, s_{1,i})$。
-
-\begin{enumerate}
-\def\labelenumi{(\arabic{enumi})}
-\setcounter{enumi}{1}
-
-\item
-  收齐所有 $j$ 的部分签名后，算
-\end{enumerate}
-\begin{equation}\label{eq:orch:10}
-s := \frac{\sum_{j\in S}s_{0,j}}{\sum_{j\in S}s_{1,j}}.
+【检查-S】收齐份额后，在 $\mathbb Z_n$ 中计算分母 $D := \sum_{j\in\mathbb S}s_{1,j}$。
+若 $D=0$，则中止本次 Sign，废弃该预签名，不能继续求逆。
+正常执行时 $D=k\phi$，其中 $\phi=\sum_{j\in\mathbb S}\phi_j$；
+即使 PreSign 已排除 $k=0$，各方非零的 $\phi_j$ 仍可能相加为零。
+此处检查的是份额的总和，单个 $s_{1,j}$ 或 $s_{0,j}$ 为零不构成失败条件。
+只有 $D\ne0$ 时，才计算 ECDSA $s$-字段，如公式 \eqref{eq:orch:ecdsa-s}。
+\begin{equation}
+  \label{eq:orch:ecdsa-s}\tag{ecdsa-s}
+  s := D^{-1}\sum_{j\in\mathbb S}s_{0,j} \pmod n.
 \end{equation}
 
-展开化简等于合法 ECDSA $s$ 字段。
+【检查-S】将 $s$ 表示为 $0\le s<n$ 的整数；若 $s=0$，则中止并废弃该预签名。
+只有 $1\le r,s<n$ 时，才以消息哈希 $m$ 和派生公钥 $Y'$ 进行 ECDSA 标准验签。
+验签失败则中止并废弃该预签名；验签通过才输出 $(r,s)$，随后销毁本次预签名的秘密状态。
 
-\begin{enumerate}
-\def\labelenumi{(\arabic{enumi})}
-\setcounter{enumi}{2}
-
-\item
-  工程加固：本地跑一遍 ECDSA 标准验签，失败即 abort。
-\end{enumerate}
-
-协议至此结束，输出 $(r, s)$。
+【检查-S】上述 Sign 检查失败时，本次尝试均不输出签名。
+若需重试，先确认签名集合未涉及已停用对端，再使用新的 PreSign 会话号。
+重新采样 $r_i,\phi_i$，并重新执行完整的 PreSign。
+本次产生的 OT 扩展材料、MtA 份额及 PreSignature 均随本次状态一起废弃，不能带入重试。

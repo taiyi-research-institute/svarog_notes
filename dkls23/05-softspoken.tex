@@ -58,9 +58,9 @@ ECDSA Keygen 阶段跑 $\kappa = 256$ 个 Base Endemic OT 实例（Endemic OT）
   由他的 Base OT 选择位决定，只有他知道。
 \end{itemize}
 
-（id-1-3-extended-ot）= \#\# 1.3。Extended OT 的接口规格
+\subsection{Extended OT 的接口规格}\label{sec:softspoken:spec}
 
-发生于 ECDSA Sign 阶段。
+是 ECDSA Sign（或 Pre-sign）的子协议。  
 
 输入：
 
@@ -121,8 +121,7 @@ $M = L/S$ & 挑战向量长度 & 4 \\
 \section{SoftSpoken 扩展 OT 协议}
 \subsection{规格}
 
-输入输出：详见 \hyperref[id-1-3-extended-ot]{1.3。Extended OT
-的接口规格}。
+输入输出：详见 \hyperref[id-1-3-extended-ot]{Extended OT 规格}。
 
 安全承诺：
 
