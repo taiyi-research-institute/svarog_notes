@@ -74,6 +74,14 @@ S 类重试必须同时服从已有的 P 类停用记录；本文不提供清除
 
 \section{分布式密钥生成（DKG、Keygen）}
 
+【与原文 Keygen 的关系】本节记录的是采用 Feldman 承诺与 DLog 知识证明的 Keygen 流程，
+并非 DKLS23 Protocol 7.1 的逐步转写。
+原文的 relaxed Keygen 保留公钥与份额的一致性及门限私钥保护，
+放宽的是安全证明对提取恶意方私钥份额的要求，因此其协议不使用知识证明。
+DKLS23 在签名阶段重新随机化份额，并通过 RVOLE 提取证明所需的输入，因而可以采用这种 Keygen。
+本节流程来自笔记整理时参考的实现与材料；具体来源尚未逐项对应，不能直接套用 Protocol 7.1 的证明。
+相关说明见 \href{https://eprint.iacr.org/2023/765.pdf}{DKLS23 \S3.1、\S7 与 Protocol 7.1}。
+
 \subsection{规格}
 
 【输入】公开输入：参与方集合 $\mathbb{K}$，签名所需最少参与方数量（门限） $t$，
@@ -116,16 +124,15 @@ S 类重试必须同时服从已有的 P 类停用记录；本文不提供清除
 
 本方生成一个 $t-1$ 次随机多项式 $P_i \in \mathbb{Z}_n[X]$，
 如公式 \eqref{eq:orch:poly-share} 所示。
-其中，所有系数均为 $\mathbb{Z}_n$ 元素，
-使得各方常数项之和是私钥 $x$（如公式 \ref{eq:orch:poly-c0}），
-其他 $t-1$ 项的系数是随机的。
+各方独立均匀采样全部系数，包括常数项。
+采样完成后，以各方常数项之和定义私钥 $x$，如公式 \eqref{eq:orch:poly-c0}；$x$ 不是预先给定的约束。
 \begin{align}
 \tag{coeff}
 \phantom{{}={}} c_{i,*} & \stackrel{\$}{\leftarrow} \mathbb{Z}_n, \\
 \label{eq:orch:poly-share}\tag{PiX}
 P_i(X) &:= c_{i,0} + c_{i,1}X + \cdots + c_{i,t-1}X^{t-1}, \\
 \label{eq:orch:poly-c0}\tag{c0}
-\textrm{s.t.} &\phantom{{}={}} \sum_{i\in\mathbb{K}} c_{i,0}  = x \pmod n.
+x &:= \sum_{i\in\mathbb{K}} c_{i,0} \pmod n.
 \end{align}
 
 记 Feldman 向量 $\mathbf{F}_i$ 如公式 \eqref{eq:orch:feld-share}。
@@ -295,18 +302,19 @@ $\bigl(\beta_{\ell,i,j},\rho^{\beta_{\ell,i,j}}_{\ell,i,j}\bigr)_{\ell\in[hk,(h+
 
 \subsubsection{公开最终份额}
 
-本方获取公钥 $Y := F(0)$，即向量 $\mathbf{F}$ 的首项。
+本方获取公钥 $Y := \mathbf{F}(0)$，即向量 $\mathbf{F}$ 的首项。
 计算 $S_i := x_i \cdot G$ 并出具相应的 DLog 证明 $\pi_i$。
 
 交换 $S_i$，$\pi_i$。
 
 【检查-K】然后检验所有 DLog 证明 $\pi_j$，以及用拉格朗日插值重构公钥，
-如公式 \eqref{eq:orch:lagrange-interp} 等号右边。
+如公式 \eqref{eq:orch:lagrange-interp} 等号右边，本次使用全体 Keygen 参与方 $\mathbb K$。
+后文对签名集合 $\mathbb S$ 插值时，将系数定义中的 $\mathbb K$ 替换为 $\mathbb S$。
 \begin{align}
   \label{eq:orch:lagrange-coef}\tag{coef}
-  \lambda(j,\mathbb{S}) &:= \prod_{k\in\mathbb{S}\setminus\{j\}} \frac{-k}{j - k}, \\
+  \lambda(j,\mathbb{K}) &:= \prod_{k\in\mathbb{K}\setminus\{j\}} \frac{-k}{j - k}, \\
   \label{eq:orch:lagrange-interp}\tag{interp}
-  Y &\phantom{:}\stackrel{?}{=} \sum_{j\in\mathbb{S}}\lambda(j,\mathbb{S}) \cdot S_j.
+  Y &\phantom{:}\stackrel{?}{=} \sum_{j\in\mathbb{K}}\lambda(j,\mathbb{K}) \cdot S_j.
 \end{align}
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
@@ -314,7 +322,8 @@ $\bigl(\beta_{\ell,i,j},\rho^{\beta_{\ell,i,j}}_{\ell,i,j}\bigr)_{\ell\in[hk,(h+
 \section{PreSign}
 
 目标：把跟消息 $m$ 无关的所有协议步骤一次性跑完，
-产出每方的 PreSignature。之后绑定任意 $m$ 输出签名只需一轮广播（见第 3 章）。
+产出每方的 PreSignature。PreSign 交换两轮消息，之后绑定消息 $m$ 的 Sign 再交换一轮。
+初始化完成后，整个签名流程共三轮；第一轮同时发送 nonce 承诺与 SoftSpoken Receiver 消息。
 
 【检查-S】ECDSA 签名公式回顾（伪代码，全局视角）：
 
@@ -364,11 +373,20 @@ $\phi_i$ 本方私有，用于 Sign 时绑定一个 $m$。
 \end{itemize}
 
 【安全警告】PreSignature 应当用后即焚。
-如果给同一份 PreSignature 绑定两条不同 $m$ ，则立即泄露 $\phi_i$，进而泄露 $x'$ 的本方分片。
+若同一份 PreSignature 在同一派生私钥 $x'$ 下，对 $m_1\ne m_2\pmod n$ 产生两份有效签名，
+则两份签名复用了同一个 nonce $k$，并有相同的非零 $r$。
+对未经 $s\mapsto n-s$ 规范化的签名值 $s^{(1)},s^{(2)}$，任意获得两份签名的人都能恢复
+\begin{equation}
+  k=(m_1-m_2)(s^{(1)}-s^{(2)})^{-1},\qquad
+  x'=(s^{(1)}k-m_1)r^{-1}\pmod n.
+\end{equation}
+这是由 $s^{(a)}k=m_a+rx'$ 直接相减得到的；上述条件保证两个分母均非零。
+若签名经过 low-S 规范化，可枚举两个 $s$ 的正负号，并用公钥核对候选私钥。
+仅从重复发送的签名份额恢复 $\phi_i$，不足以直接断言已恢复本方 $x'_i$；这里采用完整私钥恢复的结论。
 
 \subsection{实施}
 
-\subsubsection{得到 MtA 乘法 $r$-分片与 $x'$-分片}
+\subsubsection{得到 MtA 乘法 $r$-分片、$x'$-分片与加法 $y$-分片}
 
 获取随机 nonce 分片 $r_i \stackrel{\$}{\leftarrow} \mathbb{Z}_n^*$、
 MtA 盲化分片 $\phi_i \stackrel{\$}{\leftarrow} \mathbb{Z}_n^*$。
@@ -420,19 +438,6 @@ $\nabla x$ 是 BIP-32 偏移量，系数 $|\mathbb{S}|^{-1}$ 把偏移量均摊�
   \mathrm{Com}_{R,i} := \mathrm{Hash}(\mathrm{sid}, i, R_i, \varepsilon_{R,i}).
 \end{equation}
 
-【交换】 $\mathrm{Com}_{R,i}$。
-
-本地计算全体 $R_j, j\in\mathbb{S}$ 的哈希 $d$ 如公式 \eqref{eq:orch:com-hash}，
-其将在 Round 3 维护各方的一致性。式中 $Y' := Y+\nabla x \cdot G$ 为衍生公钥。
-\begin{equation}
-  \label{eq:orch:com-hash}\tag{com-hash}
-  d := \mathrm{Hash}\left(
-    \mathrm{sid}, Y', \left\{\mathrm{Com}_{R,j} : j \in \mathbb{S}\right\}
-  \right).
-\end{equation}
-
-\subsubsection{得到 MtA 加法 $y$-分片}
-
 本方作为 Receiver，与其他方调用子协议 SoftSpoken。
 输入 Keyshare 中的完整叶子 $\mathcal{A}_{h,i,j}$，其中 $h\in[0,\kappa/k)$，
 以及随机选择串 $\boldsymbol{\beta}_{j,i} \stackrel{\$}{\leftarrow} \left\{0,1\right\}^L$。
@@ -443,7 +448,18 @@ $\nabla x$ 是 BIP-32 偏移量，系数 $|\mathbb{S}|^{-1}$ 把偏移量均摊�
 计算向量 $\boldsymbol{\beta}_{j,i}$ 的 gadget 加权和，
 得到 $\beta_{j,i}:=\langle \boldsymbol{g}, \boldsymbol{\beta}_{j,i}\rangle \in \mathbb{Z}_n$。
 
-交换 $u_{j,i}, \tilde{\beta}_{j,i}, \tau_{j,i}$。
+【交换】第一轮，同时发送 $\mathrm{Com}_{R,i}$ 与 $u_{j,i}, \tilde{\beta}_{j,i}, \tau_{j,i}$。
+SoftSpoken Receiver 消息的生成不依赖对端承诺，因此这两类消息可以同轮发送。
+收齐第一轮消息后继续；承诺的揭示留到第二轮。
+
+本地计算全体承诺 $\mathrm{Com}_{R,j}, j\in\mathbb{S}$ 的哈希 $d$ 如公式 \eqref{eq:orch:com-hash}，
+其将在第二轮维护各方的一致性。式中 $Y' := Y+\nabla x \cdot G$ 为衍生公钥。
+\begin{equation}
+  \label{eq:orch:com-hash}\tag{com-hash}
+  d := \mathrm{Hash}\left(
+    \mathrm{sid}, Y', \left\{\mathrm{Com}_{R,j} : j \in \mathbb{S}\right\}
+  \right).
+\end{equation}
 
 【检查-P】然后，本方作为 Sender，与其他方调用子协议 SoftSpoken。
 输入 Keyshare 中的打孔位置与打孔叶子 $\bigl(y_{h,i,j}, \mathcal{A}^*_{h,i,j}\bigr)$，
@@ -464,7 +480,7 @@ $\nabla x$ 是 BIP-32 偏移量，系数 $|\mathbb{S}|^{-1}$ 把偏移量均摊�
   \end{aligned}
 \end{equation}
 两个加法分片满足公式 \eqref{eq:orch:rand-mta}。
-其中 $\beta_{i,j}$ 是 $\beta_{i,j}$ 是 RVOLE Receiver 也就是参与方 $j$ 的私有乘法分片；
+其中 $\beta_{i,j}$ 是 RVOLE Receiver 也就是参与方 $j$ 的私有乘法分片；
 $z$-分片是他的私有加法分片，此时还没出现。
 
 \subsubsection{得到 MtA 加法 $z$-分片}
@@ -475,7 +491,7 @@ $\Gamma^\mathtt{x}_{i,j} := y^\mathtt{x}_{i,j} \cdot G$。
 
 算 $\phi$ 专用的偏移量 $\psi_{i,j} := \phi_i - \beta_{j,i}$。
 
-【交换】
+【交换】第二轮，发送以下消息。
 \begin{itemize}
 \item
   RVOLE Sender 消息 $\tilde a_{i,j}, \eta_{i,j}, \mu_{i,j}$；
@@ -491,7 +507,7 @@ $\Gamma^\mathtt{x}_{i,j} := y^\mathtt{x}_{i,j} \cdot G$。
   一致性约束 $d$，详见公式 \eqref{eq:orch:com-hash}。
 \end{itemize}
 
-【检查-P】重新计算 $\mathrm{Com}_{R,j}$，检查与 Round 1 所收到的是否相等。
+【检查-P】重新计算 $\mathrm{Com}_{R,j}$，检查与第一轮所收到的是否相等。
 揭示失败时，对该对端 $j$ 执行 P 类处理。
 
 【检查-P】检查各方发来的 $d$ 与本地计算的 $d$ 是否相等。
@@ -560,7 +576,7 @@ RVOLE 协议本身不保证输入的乘法分片是下游协议所需的。
 
 【检查-S】本方先检查输入 PreSignature 中的 $r$ 满足 $1\le r<n$，否则废弃该预签名并中止。
 本方计算 $s_{0,i} := s_{0,i}^\circ + m \cdot \phi_i$。
-在发送签名份额之前，将该 PreSignature 标记为已使用，然后交换 $s_{0,i}, s_{1,i}$。
+在发送签名份额之前，将该 PreSignature 标记为已使用，然后在第三轮交换 $s_{0,i}, s_{1,i}$。
 无论本次 Sign 成功还是失败，该预签名均不得再次使用。
 
 【检查-S】收齐份额后，在 $\mathbb Z_n$ 中计算分母 $D := \sum_{j\in\mathbb S}s_{1,j}$。
