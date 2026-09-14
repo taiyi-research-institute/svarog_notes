@@ -71,6 +71,15 @@
 % 段距 1em: 0.6em 在 1.3 行距下与行距混成一片, 没有段落区分度
 \setlength{\parskip}{1em}
 
+% 补丁保留在相应笔记中，用黑体标记和上下横线界定范围，正文可以跨页。
+\newenvironment{patchnote}[1]{%
+  \par\noindent{\heitiLatin\heiti 【补丁】#1}\par\nopagebreak
+  \noindent\rule{\linewidth}{0.4pt}\par\nopagebreak
+}{%
+  \par\nopagebreak\noindent\rule{\linewidth}{0.4pt}\par\nopagebreak
+  \noindent{\heitiLatin\heiti 【补丁结束】}\par
+}
+
 % --- 页眉: 无. article 默认 pagestyle=plain, 只有页脚中央页码 ---
 \pagestyle{plain}
 

@@ -10,7 +10,11 @@ SoftSpokenOT 用 $\kappa/k$ 棵打孔树顶替 IKNP 的 $\kappa$ 行种子，
 变换压成单条消息。产出的随机 OT 密钥由 随机 VOLE 兑换成 MtA。
 
 参考：Roy，“SoftSpokenOT”，CRYPTO 2022，
-https://eprint.iacr.org/2022/192。本篇参数取 DKLs23 中的设置。
+https://eprint.iacr.org/2022/192。
+\begin{patchnote}{2026-976｜参数版本说明}
+本篇保留 DKLS23 的 Base OT 与树参数；扩展长度按 2026/976 的 RVOLE Variant III 更新。
+参数依据与两方可选方案见 \hyperref[sec:rvole:variants]{RVOLE 的三种 gadget 时序}。
+\end{patchnote}
 
 \section{接口规格串讲}
 
@@ -91,6 +95,10 @@ Extended OT 是随机 OT：两侧协商出随机密钥串，真正的 payload �
 
 \subsection{参数表}
 
+\begin{patchnote}{2026-976｜替换扩展长度参数}
+【初版笔记】$L=512$、$L'=640$、$M=4$；下表的补丁值只修改这三项，Base OT 与树参数沿用初版。
+
+【补丁写法】
 \begin{longtable}[]{@{}
   >{\centering\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2105}}
   >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.6316}}
@@ -101,7 +109,7 @@ Extended OT 是随机 OT：两侧协商出随机密钥串，真正的 payload �
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
 意义
 \end{minipage} & \begin{minipage}[b]{\linewidth}\centering
-DKLs23 取值
+补丁取值
 \end{minipage} \\
 \midrule\noalign{}
 \endhead
@@ -112,16 +120,29 @@ $\lambda$ & 叶子内容长度（数值同 $\kappa$，见 PPRF 与 GGM 树）&
 256 \\
 $k$ & 树深 = 每棵树吃掉的 Base OT 数 & 4 \\
 $q = 2^k$ & 每棵树的叶子数 & 16 \\
-$L$ & 真实 OT 实例数 & 512 \\
+$L$ & 真实 OT 实例数 & 2688 \\
 $S$ & 陪跑段长度，也是域 $\mathbb{GF}(2^S)$ 的位宽 & 128 \\
-$L' = L + S$ & 扩展列数 & 640 \\
-$M = L/S$ & 挑战向量长度 & 4 \\
+$L' = L + S$ & 扩展列数 & 2816 \\
+$M = L/S$ & 挑战向量长度 & 21 \\
 \end{longtable}
+
+这里增加的是叶子扩张后的列数，树数仍为 64，树深仍为 4，Base OT 数仍为 256。
+默认 $L=2688$ 来自下游 RVOLE 在 $\lambda_c=\lambda_s=128$ 时的充分界及 128 列对齐。
+若采用两方 Variant II，则 $L=896$、$L'=1024$、$M=7$；两端必须使用同一组维度。
+这些 RVOLE 参数不单独证明本篇 OT 扩展或整套签名达到了相同安全级别。
+\end{patchnote}
+
+\begin{patchnote}{2026-976｜新增 OT 通信记录接口}
+【向 RVOLE 传递通信记录】双方保存相同的初始化 transcript 摘要与本次 $(u,\tau,\tilde\beta)$。
+编码绑定实例号、方向、维度和协议版本，供下游构造 $T_{\mathrm{OT}}$。
+Sender 须完成本篇验证后才调用 RVOLE；具体组合还须满足
+\hyperref[sec:rvole:parameters-model]{RVOLE 的随机 OT 接口与输入绑定条件}。
+\end{patchnote}
 
 \section{SoftSpoken 扩展 OT 协议}
 \subsection{规格}
 
-输入输出：详见 \hyperref[id-1-3-extended-ot]{Extended OT 规格}。
+输入输出：详见 \hyperref[sec:softspoken:spec]{Extended OT 规格}。
 
 安全承诺：
 

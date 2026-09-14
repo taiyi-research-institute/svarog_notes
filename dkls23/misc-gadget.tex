@@ -1,163 +1,142 @@
 % !TEX root = misc-gadget.tex
 % title: 杂记：gadget 向量
 
+\subsection{【补丁｜2026-976】gadget 向量与安全界的修订稿}\label{sec:gadget-vector}
 
-\subsection{gadget 向量替代二进制权重}\label{sec:gadget-vector}
+\begin{patchnote}{2026-976 与笔记勘误｜本篇正文整体替换稿，包含必要的原有基础公式}
+【初版笔记】统一使用 $L=\kappa+2\lambda_s$，要求 gadget 提前固定，
+并把 LHL 界误用于单个选择位的猜测成功概率。
+标作「2026-976 相关笔记勘误」的段落是阅读该文后对原笔记的纠错，并非该文提出的新协议步骤。
+本稿分别标出论文更新与原笔记中的解释性勘误，不能把本篇全部基础公式都理解为论文新增。
 
-前文使用 $2^j$ 作为权重把 $\beta_j$ 聚合成 $\hat{x}_b$，
-也把 $t_j$ 聚合成 $z_b$。此处 $j$ 的范围是 $1$ 到 $m$，
-取 $m=\kappa$（这里 $\kappa=|n|$ 表示模数比特数）。
-称这种为\textbf{朴素二进制方案}。
+【补丁写法】
+gadget 向量把 OT 的选择比特串压成一个标量，同时把逐行乘积份额聚合成标量域上的 MtA。
+本文记标量模数为 $n$，位宽为 $\kappa=\lceil\log_2n\rceil$，OT 数量为 $L$。
+计算与统计安全参数分别为 $\lambda_c,\lambda_s$，与模数位宽分开使用。
 
-DKLS23 实际采用的是\textbf{随机 gadget 方案}：
-用公开的随机向量 $\mathbf{g}=(g_1,\ldots,g_m)\in\mathbb{Z}_n^m$ 替代 $2^j$，
-同时把 $m$ 从 $\kappa$ 增加到 $\kappa+2\lambda_s$，
-其中 $\lambda_s$ 是统计安全参数，实践取 128。
+DKLS23 用随机权重 $\boldsymbol g\in\mathbb Z_n^L$ 替代朴素的二进制权重。
+旧参数 $L=\kappa+2\lambda_s$ 足以描述独立均匀选择串的基本 LHL 估计，
+但不能直接覆盖恶意 Sender 在看到 gadget 后施加的选择约束。
+本篇按 \href{https://eprint.iacr.org/2026/976.pdf}{Asharov，2026/976，第 4～5 节}
+更新选择时机、参数与适用范围；完整协议见 \hyperref[sec:rvole:parameters-model]{RVOLE 完全版}。
 
-形式上前文协议保持不变，仅做如下记号替换：
 \begin{equation}\label{eq:misc-gadget:1}
-2^j\;\longmapsto\;g_j,\qquad m=\kappa\;\longmapsto\;m=\kappa+2\lambda_s.
+2^j\;\longmapsto\;g_j,\qquad
+L\text{ 按 gadget 的生成时机与安全参数选取。}
 \end{equation}
 
-具体地，
+形式上，逐行 OT 计算完成后，双方分别执行
 \begin{equation}\label{eq:misc-gadget:2}
-\hat{x}_b=\sum_j g_j\cdot\beta_j,\quad
-z_a=-\sum_j g_j\cdot\alpha^0_j,\quad
-z_b=\sum_j g_j\cdot t_j.
+\hat x_b=\sum_{j=0}^{L-1}g_j\beta_j,\qquad
+z_a=-\sum_{j=0}^{L-1}g_j\alpha_j^0,\qquad
+z_b=\sum_{j=0}^{L-1}g_jt_j.
 \end{equation}
+若逐行关系为 $t_j=\alpha_j^0+\beta_jw$，则 $z_a+z_b=w\hat x_b$。
+这条正确性等式与 gadget 何时生成无关，只要求双方使用同一向量。
+恶意安全还取决于逐行一致性检查与随机性条件，不能仅凭该代数等式推出。
 
-$\mathbf{g}$ 是公开参数，协议双方都可见，实践中通过 sid 派生：
-\begin{equation}\label{eq:misc-gadget:gvec}
-g_j=\mathrm{Hash}(\mathrm{sid}\,\|\,\texttt{"gadget"}\,\|\,j)\bmod n. \tag{gvec}
-\end{equation}
+\subsubsection{【补丁｜2026-976 相关笔记勘误】选择串与聚合标量}
 
-前文的公式“za+zb”，“v.proof”等的证明全部沿用，不受影响。
-
-\subsubsection{与朴素二进制的区别}
-
-为了把“差别”讲清楚，先引入一个新记号 $\boldsymbol{\beta}$，定义为 Bob
-在 $m$ 个 OT 实例中所有选择位拼成的\textbf{比特向量}：
+Receiver 的选择串是
 \begin{equation}\label{eq:misc-gadget:4}
-\boldsymbol{\beta}=(\beta_1,\beta_2,\ldots,\beta_m)\in\mathbb{B}^m.
+\boldsymbol\beta=(\beta_0,\ldots,\beta_{L-1})\in\{0,1\}^L.
 \end{equation}
+它有 $L$ 比特，而 $\hat x_b=\langle\boldsymbol g,\boldsymbol\beta\rangle$ 是 $\mathbb Z_n$ 中的一个标量。
+多个不同的选择串可以得到同一个标量，这给逐行一致性检查保留了隐藏选择位的余地。
+但「有很多原像」不等于「每个选择位都不可预测」，原像的数量也不直接给出恶意安全界。
 
-注意 $\boldsymbol{\beta}$ 和已有的 $\hat{x}_b=\sum_j g_j\beta_j\in\mathbb{Z}_n$ 是两个不同的对象：
+朴素二进制权重在取模前就是整数的二进制编码。
+取模后，当 $n<2^\kappa$ 时该映射不是严格双射，因此也不能把模 $n$ 的版本称为双射。
+随机 gadget 通过增加选择串长度并随机化权重，提供更充足的熵提取空间。
 
-\emph{$\boldsymbol{\beta}$ 是 $m$ 比特的 0/1 向量，是 OT
-层面的原始选择。共 $2^m$ 种取值。
-}$\hat{x}_b$ 是 $\mathbb{Z}_n$ 上的标量，是 $\boldsymbol{\beta}$ 经
-gadget 加权求和得到的“压缩值”，也就是 Bob 在底层随机 MtA 中的等效输入。
-共 $n$ 种取值，$|\hat{x}_b|\approx\kappa$ 比特。
+\subsubsection{【补丁｜2026-976 相关笔记勘误】普通 leftover hash lemma 保证什么}
 
-后文反复出现的“$\boldsymbol{\beta}\to\hat{x}_b$ 映射”指的就是 $\boldsymbol{\beta}\mapsto\sum_j g_j\beta_j$ 这个加权求和。
-
-两种方案外表只差三个细节：$g_j$ 取值、$m$ 大小、$\mathbf{g}$ 是否随机。
-实质区别在 $\boldsymbol{\beta}\to\hat{x}_b$ 这个映射的多对一程度。
-
-\begin{itemize}
-
-\item
-  \textbf{朴素二进制}：
-  映射是双射。$2^\kappa$ 个候选 $\boldsymbol{\beta}$ 一一对应 $2^\kappa$ 个 $\hat{x}_b$。
-  给定 $\hat{x}_b$，立即从二进制展开解出 $\boldsymbol{\beta}$。
-\item
-  \textbf{随机 gadget}：映射多对一。候选数 $2^m=2^{\kappa+2\lambda_s}$，
-  像空间 $\mathbb{Z}_n$ 大小 $\approx 2^\kappa$。由抽屉原理，
-  平均每个 $\hat{x}_b$ 对应约 $2^{2\lambda_s}$ 个 $\boldsymbol{\beta}$。
-\end{itemize}
-
-更精确地，由 leftover hash lemma：
+设 $\boldsymbol B$ 来自一个与 $\boldsymbol G$ 独立的源，最小熵至少为 $h$，
+而 $\boldsymbol G$ 均匀取自 $\mathbb Z_n^L$。
+对不同的二进制串，其内积相等的概率为 $1/n$，所以这些内积映射构成通用哈希族。
+LHL 给出
 \begin{equation}\label{eq:misc-gadget:5}
-\bigl(\mathbf{g},\,\hat{x}_b\bigr)\;\stackrel{s}{\approx}\;\bigl(\mathbf{g},\,U\bigr),\quad U\stackrel{\$}{\leftarrow}\mathbb{Z}_n.
+\operatorname{SD}\bigl(
+  (\boldsymbol G,\langle\boldsymbol G,\boldsymbol B\rangle),
+  (\boldsymbol G,U_{\mathbb Z_n})\bigr)
+\le \frac12\sqrt{\frac n{2^h}}.
 \end{equation}
+若 $\boldsymbol B$ 在全部 $L$ 比特串上均匀分布，则 $h=L$。
+此时取 $L=\kappa+2\lambda_s$，右侧不大于 $2^{-\lambda_s-1}$。
+这是原始独立源的估计，尚未处理恶意 Sender 的选择性失败。
 
-统计距离 $\leq \frac{1}{2}\sqrt{n/2^m}=\frac{1}{2}\cdot 2^{-\lambda_s}$，
-可忽略。等价表述：
-\textbf{即便公开 $\mathbf{g}$，$\hat{x}_b$ 的分布与 $\mathbb{Z}_n$ 上均匀随机数在统计上几乎不可区分}，
-也就是 $\hat{x}_b$ 几乎不携带 $\boldsymbol{\beta}$ 的信息。
+该式比较的是「权重与聚合输出」的联合分布，并不声称输出与原选择串独立。
+例如，输出确定为原选择串的函数，本来就携带关于它的约束。
+同样，猜一个均匀比特的成功概率是 $1/2$；不能把 $2^{-\lambda_s}$ 写成猜该比特的成功概率。
 
-直观：$\boldsymbol{\beta}$ 有 $m$ 比特熵，$\hat{x}_b$ 容纳 $\kappa$ 比特，
-多出来的 $2\lambda_s$ 比特是被 leftover hashing 压缩掉的，
-信息论意义上不可恢复。
+\subsubsection{【补丁｜2026-976】提前公开 gadget 后，为什么旧参数不足}
 
-\subsubsection{gadget 防的是什么}
+在 RVOLE 中，恶意 Sender 可以让一些 OT 行使用不一致的等效输入。
+一致性检查可能仅在若干 Receiver 选择位恰好符合它的猜测时通过，这就是选择性失败。
+条件化到「检查通过」后，选择串落入受约束的源，分布已不再是原来的独立均匀源。
 
-回顾 Step 3。Bob 把 $\delta=x_b-\hat{x}_b$ 发给 Alice。
-这意味着 $\hat{x}_b$ 通过 $\delta$ 进入 Alice 的视图，
-只是被 $x_b$ 当作一次性掩码遮住。
+若 $\boldsymbol g$ 在协议开始时就公开，Sender 可以看着它选择要约束哪些位以及这些位的取值。
+于是，条件化后的源可以依赖 $\boldsymbol g$。
+普通 LHL 对每个预先固定的高熵源给出保证，不能直接交换量词，
+将其改写成「这个已公开的 $\boldsymbol g$ 对所有事后选择的源都足够好」。
 
-孤立单次 MtA
-调用、$x_b$ 新鲜随机，$\delta$ 就是均匀随机，$\hat{x}_b$ 没有泄露。
-此时朴素二进制其实是安全的。但实际部署中有以下场景，$\hat{x}_b$ 在 Alice
-视图中并非完全随机：
+2026/976 第 5 节分别分析三种游戏，区分源与 gadget 独立、有限次尝试 gadget，
+以及公开 gadget 后自适应固定部分选择位。
+第三种情况下，需要对协议允许的选择约束族统一控制坏事件。
+这导致更大的 OT 数量充分界；论文给出的是保守界，不是已经证明最优的最小参数。
 
-\begin{itemize}
+\subsubsection{【补丁｜2026-976】三种时序及其实施}
 
-\item
-  \textbf{$x_b$ 跨调用复用}。例如 ECDSA 中 $x_b$ 是 Bob 的密钥分片，
-  跨签名共用。
-  多次的 $\delta_i = x_b - \hat{x}_{b,i}$ 之间的差 $\delta_i - \delta_{i'} = \hat{x}_{b,i'} - \hat{x}_{b,i}$ 直接泄露 $\hat{x}_b$ 之差。
-\item
-  \textbf{$x_b$ 通过其它通道泄露}。ECDSA
-  中 $x_b$ 同时被用于公钥提交 $X_b = x_b\cdot G$、一致性检查里的 $\Gamma$ 项。
-  这些公开值让 Alice 间接学到 $x_b$ 的信息，进而学到 $\hat{x}_b$ 的信息。
-\item
-  \textbf{UC 协议组合}。RVOLE 嵌入外层 ECDSA 时，外层 simulator 在做
-  hybrid 论证时常常需要把 $\hat{x}_b$ 当成“已经泄露给敌手”来推进。
-  此时内层一致性检查的可靠性必须不依赖 $\hat{x}_b$ 保密。
-\end{itemize}
+【Variant I】Receiver 在校验 Sender 消息后，才均匀选择 $\boldsymbol g$ 并发送。
+这样，Sender 形成选择约束时还不知道 gadget，可以使用独立源的分析。
+代价是增加一条 Receiver 消息，标量 $\hat x_b$ 也到这个阶段才产生；充分条件为
+$L\ge\kappa+3\lambda_s$。
 
-以上每个场景下，$\boldsymbol{\beta}$ 在 Alice
-视图中的剩余熵都是论证可靠性的关键。
-注意这里说的是 $\boldsymbol{\beta}$ 的熵，不是 $\hat{x}_b$ 的熵 ----
-一致性检查（公式“verify”）在每个 $j$ 位上具体用到的是 $\beta_j$，
-即 $\boldsymbol{\beta}$ 的某一比特。
+【Variant II】双方从 Sender 的最后一条消息派生 gadget。
+沿用 RVOLE 的记号，令 $M_2=\mathrm{Enc}(\tilde a,\eta,\mu)$，再计算
+\begin{equation}
+\boldsymbol g:=\mathrm{RO}_{\mathbb Z_n^L}
+ \bigl(\mathrm{Enc}(\mathrm{sid},\texttt{"gadget-II"},T_{\mathrm{OT}},M_2)\bigr).
+\end{equation}
+Sender 可以尝试多个候选消息并查询随机预言机，参数须计入这种研磨能力。
+论文给出的充分条件为 $L\ge\kappa+2\lambda_c+3\lambda_s$。
+该方案省去单独发送 gadget 的轮次，但 Receiver 仍要收到最后消息后才能得到 $\hat x_b$。
 
-\begin{itemize}
+【Variant III】双方在协议开始时生成
+\begin{equation}\label{eq:misc-gadget:gvec}
+\boldsymbol g:=\mathrm{RO}_{\mathbb Z_n^L}
+ \bigl(\mathrm{Enc}(\mathrm{sid},\texttt{"gadget-III"})\bigr).
+\end{equation}
+这保留了多方 DKLS23 所需的早期 Receiver 标量，充分条件为
+\begin{equation}
+L\ge\kappa+7\lambda_s+2\log_2(\lambda_s+1)
+       +2\lambda_s\log_2(eL/\lambda_s).
+\end{equation}
+这里 $e$ 为自然常数，所有对数以 2 为底。
+随机预言机到域元素的实现采用 XOF 与拒绝采样，不能直接把短哈希取模称为均匀采样。
+各有向实例使用唯一会话号，参数、协议版本和身份都纳入无歧义编码。
 
-\item
-  \textbf{朴素二进制下}，$\boldsymbol{\beta}\to\hat{x}_b$ 双射。$\hat{x}_b$ 一旦泄露 $\boldsymbol{\beta}$ 立即被解出。
-  公式“verify”的可靠性论证依赖 Alice 无法预测 $\beta_j$（见前文 ※），
-  此时直接塌掉 ---- Alice 知道每个 $\beta_j$，
-  可以精确选择只在 $\beta_j=0$ 的位作弊，检查永远通过。
-\item
-  \textbf{随机 gadget 下}，即便 $\hat{x}_b$ 完全泄露给
-  Alice，$\boldsymbol{\beta}$ 仍有约 $2^{2\lambda_s}$ 个候选。Alice
-  想精确预测某个 $\beta_j$，概率上界由 leftover hash lemma
-  给到 $2^{-\lambda_s}$，可忽略。
-\end{itemize}
+\subsubsection{【补丁｜2026-976】与 RVOLE 和签名编排的关系}
 
-※ 一个比喻：朴素二进制相当于“原文 = 哈希值”，哈希一漏原文也漏。随机
-gadget 相当于“原文比哈希值长 $2\lambda_s$ 比特”，
-哈希漏了原文还剩 $2\lambda_s$ 比特不可恢复熵。leftover hash lemma
-严格量化了这个直觉。
+前两种方案都把聚合标量的产生推迟到 Receiver 收到 Sender 消息之后。
+多方签名第二轮要发送 $\psi_{i,j}=\phi_i-\beta_{j,i}$，因此不能直接换成较晚产出 $\beta_{j,i}$ 的方案。
+本笔记的多方流程采用 III；两方每个方向只有一个对端，可采用 II 并省去这层盲化值对齐。
 
-※ 这一节回答了一个看似自相矛盾的问题：
-“$\hat{x}_b$ 已经通过 $\delta$ 给了 Alice，还谈什么 $\beta_j$ 保密?”
-答案是：$\hat{x}_b$ 是 $\kappa$ 比特，$\boldsymbol{\beta}$ 是 $m$ 比特，
-gadget 让两者之间相差 $2\lambda_s$ 比特熵 ----
-这部分熵是 $\hat{x}_b$ 完全泄露也带不走的。
-可靠性论证依赖的是 $\boldsymbol{\beta}$ 的分量 $\beta_j$，
-而不是聚合后的 $\hat{x}_b$。
+此外，RVOLE 一致性挑战必须约束对应 OT 阶段。
+若 Endemic OT 允许恶意 Sender 自选输入，仅由修正矩阵生成挑战可能允许事后调整 OT 输入来抵消检查。
+因此，本篇引用的参数与协议结论还要求
+\hyperref[sec:rvole:parameters-model]{Sender Random OT 或具体 transcript 输入绑定条件}，
+不能把 gadget 参数修订当作这个独立问题的修补。
 
-\subsubsection{代价与权衡}
+\subsubsection{【补丁｜2026-976】代价与参数核对}
 
-代价：OT 实例数从 $\kappa$ 增加到 $\kappa+2\lambda_s$。
-在 $\kappa=256, \lambda_s=128$ 时，$m$ 从 256 增到 512，翻倍。通信量和
-OT 计算量同比增加。
+以 secp256k1、$\kappa=256$、$\lambda_c=\lambda_s=128$ 为例，
+I、II、III 的上述充分用量分别为 640、896、2656 个 OT。
+为了配合现有 SoftSpoken 的 128 列分块，默认 III 取 $L=2688$，
+并将扩展列数设为 $L'=2816$，真实块数设为 $M=21$。
 
-好处：
-一致性检查的可靠性从“假设 $\hat{x}_b$ 完全保密”放宽到“即便 $\hat{x}_b$ 完全泄露，$\boldsymbol{\beta}$ 仍有 $2\lambda_s$ 比特剩余熵”。
-这是信息论级别的加固，不依赖计算困难假设，
-也不需要为 $\hat{x}_b$ 是否经由外层泄露做额外论证。在 UC
-框架下做协议组合时，这个让步特别值。
-
-\subsubsection{实现注意}
-
-\emph{$\mathbf{g}$ 必须\textbf{在 Alice
-提交修正矩阵 $\tilde{a}_*$ 之前}就被固定。从 sid 派生最干净，
-既不需要存储，也避免“谁选的”这种争议。} 不能让 Alice
-自选 $\mathbf{g}$。否则她可以选成 $g_j=2^j$（且只用前 $\kappa$ 行）
-把映射变成双射，抽干 $\boldsymbol{\beta}$ 剩余熵。
-*$g_j$ 是 $\mathbb{Z}_n$ 上的标量，不是 0/1，后续聚合按 scalar
-参与运算，不要错把它当 bit 处理。
+RVOLE 的一个校验负载还要求 $\log_2 n\ge\lambda_c+2\log_2L$，上述参数满足该条件。
+扩展数量增加不改变 PPRF 树深 4、树数 64 或 Base OT 数 256，
+而是延长叶子伪随机流及后续矩阵的列数。
+这些参数分别服务于其协议组件，不能据此独立断言整套 ECDSA 达到了同一统计安全等级。
+\end{patchnote}

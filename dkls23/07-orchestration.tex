@@ -6,6 +6,21 @@ Endemic OT 产出 Base OT 种子，PPRF 和 SoftSpokenOT 把种子扩展成海�
 随机 VOLE 再把随机 OT 替换成 MtA 份额。
 本篇把零件装配成完整的门限 ECDSA。
 
+\begin{patchnote}{2026-929、2026-976｜本篇修订范围}
+多方流程采用
+\href{https://eprint.iacr.org/2026/929.pdf}{Segev，2026/929，第 3 节}
+的完整 nonce 点与签名符号一致性检查；RVOLE 默认采用
+\href{https://eprint.iacr.org/2026/976.pdf}{Asharov，2026/976，第 4 节}
+的 Variant III 参数与 OT 绑定要求。
+独立的两方预处理流程见 \hyperref[sec:orch:two-party-2026]{本篇末节}。
+零和掩码默认保留共享种子方案，也记录 929 的现场采样替换方案。
+
+929 指出原协议不满足原先声称的混合模型统计安全，同时在 ECDSA 忽略符号的强不可伪造性假设下证明其计算安全。
+修订协议的统计安全结论仍位于理想承诺、零分享与 RVOLE 的混合模型中，针对静态恶意腐化并允许中止。
+用哈希、曲线与 OT 扩展实现这些功能后，不能把整套实现称为无条件安全。
+本篇的 Keygen 来源与具体 OT 组合仍有下文注明的证明前提。
+\end{patchnote}
+
 【协议参数】
 
 \begin{itemize}
@@ -49,6 +64,7 @@ Endemic OT 产出 Base OT 种子，PPRF 和 SoftSpokenOT 把种子扩展成海�
 \item[【检查-S】单次签名失败。]
   中止本次 PreSign 或 Sign，废弃对应预签名及临时材料；保留既有 Keyshare。
   适用于总点为无穷远点、$r$ 或 $s$ 无效、签名分母为零、最终验签失败，
+  【补丁｜2026-929、2026-976】nonce 点视图不一致、签名符号检查失败、消息与保存的上下文不符，
   以及收到本次签名的失败通知；仅凭这些结果不新增停用对端。
   若重试，须新建 PreSign 会话并重新采样，不能复用失败的预签名。
 \item[【检查-P】停用对端并终止关联会话。]
@@ -71,6 +87,13 @@ P 类处理以 DKLS23 Protocol 3.6 第 8 步为依据，涵盖 RVOLE 失败与�
 等待消息本身不等于检验失败：异步网络中的延迟不能证明对方拒绝发送。
 若调用方因超时取消，Keygen 按 K 类、签名按 S 类收尾，不据此新增停用对端。
 S 类重试必须同时服从已有的 P 类停用记录；本文不提供清除记录、重新接纳对端的恢复流程。
+
+\begin{patchnote}{2026-976｜新增共享 OT 状态的并发要求}
+【共享 OT 状态的并发约束】2026/976 第 2.1 节强调，失败后的 Base OT 状态不能继续安全复用。
+上面的 P 类规则要求停用记录在所有共享该状态的执行者之间生效，并终止已启动的关联执行。
+若同一 Keyshare 被复制到互不协调的进程或设备，仅在单个进程内记录停用是不够的。
+一种工程选择是每次预处理独立重建 Base OT 与 PPRF；此时应计入额外的初始化通信与轮次。
+\end{patchnote}
 
 \section{分布式密钥生成（DKG、Keygen）}
 
@@ -102,6 +125,9 @@ DKLS23 在签名阶段重新随机化份额，并通过 RVOLE 提取证明所需
   保存本方作为 PPRF Sender 的 $\mathcal{A}_{h,i,j}$，
   以及作为 PPRF Receiver 的 $\bigl(y_{h,i,j}, \mathcal{A}^*_{h,i,j}\bigr)$，
   供 Sign 阶段的 SoftSpoken 取用；
+\item
+  【补丁｜2026-976】针对每个有向 OT 初始化，保存双方一致的 Base OT 与 PPRF transcript 摘要，
+  包含初始化会话号、双方身份、角色与协议版本，供 RVOLE 绑定后续扩展批次；
 \item
   针对每个 $j\in\mathbb{K}\setminus\{i\}$，
   保存零和掩码分片 $\epsilon_{i,j}$，供协议 PreSign 派生零和掩码。
@@ -321,9 +347,19 @@ $\bigl(\beta_{\ell,i,j},\rho^{\beta_{\ell,i,j}}_{\ell,i,j}\bigr)_{\ell\in[hk,(h+
 
 \section{PreSign}
 
-目标：把跟消息 $m$ 无关的所有协议步骤一次性跑完，
-产出每方的 PreSignature。PreSign 交换两轮消息，之后绑定消息 $m$ 的 Sign 再交换一轮。
+\begin{patchnote}{2026-976｜替换 PreSign 的消息确定时机}
+【初版笔记】PreSign 无需消息，先完成两轮并揭示 nonce，之后才由 Sign 绑定任意 $m$。
+
+【补丁写法】
+目标：执行多方签名的前两轮，产出每方的 PreSignature，再由 Sign 执行第三轮。
+虽然多数算式不使用消息哈希 $m$，本篇默认在第一轮之前就确定消息及派生公钥。
 初始化完成后，整个签名流程共三轮；第一轮同时发送 nonce 承诺与 SoftSpoken Receiver 消息。
+
+【消息确定时机】旧的「先生成并揭示 $R$，再任选消息」接口允许对手根据 nonce 选择消息。
+2026/976 第 2.2 节指出这类预签名会带来额外安全损失；用后即焚不能单独排除这个问题。
+因此，这里的 PreSign 名称只表示两轮计算阶段，不再表示可供未知消息调用的离线接口。
+支持未知消息、未知密钥的预处理见 \hyperref[sec:orch:two-party-2026]{两方方案}，其 nonce 揭示推迟到在线阶段。
+\end{patchnote}
 
 【检查-S】ECDSA 签名公式回顾（伪代码，全局视角）：
 
@@ -347,18 +383,35 @@ $\mathcal O$ 表示椭圆曲线的无穷远点，$\bot$ 表示本次尝试失败
 
 \subsection{规格}
 
-【输入】参与方 $i$ 输入 Keyshare、签名者集合 $\mathbb{S}$，BIP-32 私钥偏移量 $\nabla x$。
-无需消息哈希 $m$，其在 Sign 阶段绑定。
+\begin{patchnote}{2026-929、2026-976｜替换输入与 PreSignature 状态}
+【初版笔记】输入不含消息，状态为 $(r,s_{1,i},s_{0,i}^{\circ},\phi_i)$。
+【补丁写法】预先绑定消息与上下文 $C$，增加完整点 $R$；下面列出完整的新规格。
+
+【输入】参与方 $i$ 输入 Keyshare、签名者集合 $\mathbb{S}$、BIP-32 私钥偏移量 $\nabla x$，
+以及已经共同确定的消息哈希 $m$。
+各方在发送第一轮消息前固定同一个公开上下文 $C$，其编码包含
+\begin{equation}\label{eq:orch:sign-context}
+\begin{aligned}
+C:=\mathrm{Enc}(&\texttt{"sign-2026"},\mathrm{sid},\mathrm{keyid},
+                 \mathrm{sort}(\mathbb S),Y',m,\\
+               &\mathrm{params},\mathrm{zeroMode},\mathrm{signMode}).
+\end{aligned}
+\end{equation}
+其中 $Y'=Y+\nabla xG$，参数记录包含子协议版本及维度，最后两个字段分别确定零分享方式与 low-S 输出规则。
+上下文采用无歧义编码；各子协议实例号绑定 $C$ 及有向双方身份。
+各轮消息均绑定这个上下文，收发中发现不符时中止，不允许在原有状态上更换消息或密钥。
 
 【输出】每方 $i$ 获得预签名结构体，如公式 \eqref{eq:orch:presig}。
-其中 $r$ 是 ECDSA 签名的 $r$ 字段，全员一致；
+其中 $R$ 是本地计算的完整 nonce 点，$r$ 是它的横坐标模 $n$；
+是否与其他诚实方一致，留待第三轮显式检查，不能仅从本地聚合就断言全员一致；
 $s_{1,i}$ 已经是最终值，待 Sign 阶段直接广播；
 $s_{0,i}^\circ$ 是未绑 $m$ 的中间值，待 Sign 阶段叠加 $m\cdot\phi_i$；
-$\phi_i$ 本方私有，用于 Sign 时绑定一个 $m$。
+$\phi_i$ 本方私有，用于 Sign 时代入已绑定的 $m$。
 \begin{equation}
 \label{eq:orch:presig}\tag{presig}
-\mathrm{PreSignature}_i := \bigl(r,\, s_{1,i},\, s_{0,i}^\circ,\, \phi_i\bigr).
+\mathrm{PreSignature}_i := \bigl(C,R,r,s_{1,i},s_{0,i}^\circ,\phi_i\bigr).
 \end{equation}
+\end{patchnote}
 
 【安全承诺】
 
@@ -369,7 +422,8 @@ $\phi_i$ 本方私有，用于 Sign 时绑定一个 $m$。
   MtA 份额在不知情者看来是均匀随机的。
 \item
   【检查-P】$\Gamma$ 一致性检查把各方喂给 RVOLE 的输入与广播的 $R_j, Y_j$ 绑住，
-  transcript hash $d$ 用于核对全员视图；失败时执行 P 类处理。
+  transcript hash $d$ 用于核对承诺视图；失败时执行 P 类处理。
+  【补丁｜2026-929】第三轮仍单独比较完整 $R$；哈希摘要检查不替代 929 混合模型中的 nonce 一致性检查。
 \end{itemize}
 
 【安全警告】PreSignature 应当用后即焚。
@@ -401,7 +455,12 @@ $\nabla x$ 是 BIP-32 偏移量，系数 $|\mathbb{S}|^{-1}$ 把偏移量均摊�
   x'_i := \lambda(i,\mathbb{S})\cdot x_i + \zeta_i + \nabla x \cdot |\mathbb{S}|^{-1}.
 \end{equation}
 
-协议 Keygen 已按公式 \eqref{eq:orch:symmetric-blind} 为每对参与方。
+\begin{patchnote}{2026-976｜配套实施说明：明确 HashToScalar 的采样}
+本段是落实 2026-976 的均匀标量接口要求时补充的采样约定，并非该文新增的签名步骤。
+【初版笔记】公式中写作 $\mathrm{Hash}(\cdots)\in\mathbb Z_n$，没有在此明确域采样。
+
+【补丁写法】
+协议 Keygen 已按公式 \eqref{eq:orch:symmetric-blind} 为每对参与方生成共享种子。
 本次 PreSign 中，对每个 $j\in\mathbb{S}\setminus\{i\}$，
 本方用 $\epsilon_{i,j}$ 与公开的会话信息派生同一个标量 $\zeta_{i,j}=\zeta_{j,i}$，
 如公式 \eqref{eq:orch:zeta-pair}。
@@ -410,7 +469,7 @@ $\nabla x$ 是 BIP-32 偏移量，系数 $|\mathbb{S}|^{-1}$ 把偏移量均摊�
   \label{eq:orch:zeta-pair}\tag{zeta-pair}
   \begin{aligned}
     I, J &:= \min(i,j),\max(i,j); \\
-    \zeta_{i,j}&:=\mathrm{Hash}\bigl(
+    \zeta_{i,j}&:=\mathrm{HashToScalar}\bigl(
       \texttt{"zero\_mask"},\mathrm{sid},\mathrm{sort}(\mathbb{S}),
         I, J,\epsilon_{I, J}\bigr) \\
     &\in\mathbb{Z}_n.
@@ -419,6 +478,8 @@ $\nabla x$ 是 BIP-32 偏移量，系数 $|\mathbb{S}|^{-1}$ 把偏移量均摊�
 
 式中 $\mathtt{sort}$ 是升序排序函数，确保 $\zeta_{i,j}$ 与 $\mathbb{S}$ 的顺序无关。
 该式引入参数 $\mathrm{sid}$，意味着 $\zeta_{i,j}$ 不可跨会话复用。
+这里 $\mathrm{HashToScalar}$ 使用带域分离的 XOF 与拒绝采样，输出标量域元素。
+\end{patchnote}
 
 本方按编号大小对这些标量取正负号，求和得到 $\zeta_i$：
 \begin{equation}
@@ -431,12 +492,18 @@ $\nabla x$ 是 BIP-32 偏移量，系数 $|\mathbb{S}|^{-1}$ 把偏移量均摊�
 从而再随机化不改变各方衍生私钥分片的总和。
 派生过程只依赖已有的共享种子和双方一致的公开输入，所以 PreSign 无需为零和掩码增加通信。
 
+\begin{patchnote}{2026-976｜配套实施说明：nonce 承诺绑定上下文}
+本段是落实 2026-976 的消息确定时机时采用的上下文编码；具体哈希字段属于本笔记的实施约定。
+【初版笔记】$\mathrm{Com}_{R,i}=\mathrm{Hash}(\mathrm{sid},i,R_i,\varepsilon_{R,i})$。
+
+【补丁写法】
 对 $R_i := r_i \cdot G$ 做哈希承诺如公式 \eqref{eq:orch:com-Ri}，
 式中 $\varepsilon_{R,i} \stackrel{\$}{\leftarrow} \left\{0,1\right\}^{256}$ 为盲化项。
 \begin{equation}
   \label{eq:orch:com-Ri}\tag{Com-Ri}
-  \mathrm{Com}_{R,i} := \mathrm{Hash}(\mathrm{sid}, i, R_i, \varepsilon_{R,i}).
+  \mathrm{Com}_{R,i} := \mathrm{Hash}(\mathrm{Enc}(C,i,R_i,\varepsilon_{R,i})).
 \end{equation}
+\end{patchnote}
 
 本方作为 Receiver，与其他方调用子协议 SoftSpoken。
 输入 Keyshare 中的完整叶子 $\mathcal{A}_{h,i,j}$，其中 $h\in[0,\kappa/k)$，
@@ -452,14 +519,20 @@ $\nabla x$ 是 BIP-32 偏移量，系数 $|\mathbb{S}|^{-1}$ 把偏移量均摊�
 SoftSpoken Receiver 消息的生成不依赖对端承诺，因此这两类消息可以同轮发送。
 收齐第一轮消息后继续；承诺的揭示留到第二轮。
 
+\begin{patchnote}{2026-976｜配套实施说明：承诺摘要绑定上下文}
+本段与 2026-976 的消息提前确定要求配套，固定编码顺序属于本笔记的实施约定。
+【初版笔记】$d$ 哈希会话号、派生公钥与承诺集合；补丁改为绑定 $C$ 和按编号排序的承诺序列。
+
+【补丁写法】
 本地计算全体承诺 $\mathrm{Com}_{R,j}, j\in\mathbb{S}$ 的哈希 $d$ 如公式 \eqref{eq:orch:com-hash}，
 其将在第二轮维护各方的一致性。式中 $Y' := Y+\nabla x \cdot G$ 为衍生公钥。
 \begin{equation}
   \label{eq:orch:com-hash}\tag{com-hash}
   d := \mathrm{Hash}\left(
-    \mathrm{sid}, Y', \left\{\mathrm{Com}_{R,j} : j \in \mathbb{S}\right\}
+    \mathrm{Enc}\bigl(C,(\mathrm{Com}_{R,j})_{j\in\mathrm{sort}(\mathbb S)}\bigr)
   \right).
 \end{equation}
+\end{patchnote}
 
 【检查-P】然后，本方作为 Sender，与其他方调用子协议 SoftSpoken。
 输入 Keyshare 中的打孔位置与打孔叶子 $\bigl(y_{h,i,j}, \mathcal{A}^*_{h,i,j}\bigr)$，
@@ -467,10 +540,19 @@ SoftSpoken Receiver 消息的生成不依赖对端承诺，因此这两类消息
 验证通过后，输出 $L$ 对 OT 密钥 $\rho^0_{\ell,i,j}, \rho^1_{\ell,i,j}$，
 其中 $h\in[0,\kappa/k)$，$\ell\in[0,L)$。验证失败时，对该对端 $j$ 执行 P 类处理。
 
+\begin{patchnote}{2026-976｜替换 RVOLE Sender 调用}
+【初版笔记】指定输入直接进入 RVOLE，消息只有 $(\tilde a,\eta,\mu)$。
+补丁使用随机内核，新增指定输入偏移 $\boldsymbol\delta$；目标乘法关系沿用初版。
+
+【补丁写法】
 【检查-P】然后，本方作为 Sender，与其他方调用子协议 RVOLE，详见「随机 VOLE」。
-秘密输入为 $(r_i,x'_i)$，并使用上述 OT 密钥对。
-输出修正矩阵 $\tilde a_{i,j}$、响应 $\eta_{i,j}$ 、哈希校验 $\mu_{i,j}$；
-以及 MtA 加法分片 $y^\mathtt{r}_{i,j}, y^\mathtt{x}_{i,j}$。
+指定输入为 $(r_i,x'_i)$，使用上述 OT 密钥对，并执行
+\hyperref[sec:rvole:chosen-input]{随机内核到指定输入的转换}。
+双方将 Keyshare 中对应的初始化摘要与本次 SoftSpoken 消息合成相同的 $T_{\mathrm{OT}}$。
+RVOLE 挑战绑定该记录与修正矩阵，且本篇默认 $L=2688$、$N_1=2$、$N_2=1$。
+输出修正矩阵 $\tilde a_{i,j}$、响应 $\eta_{i,j}$、哈希校验 $\mu_{i,j}$，
+以及两个指定输入偏移组成的向量 $\boldsymbol\delta_{i,j}$。
+本地保存 MtA 加法分片 $y^\mathtt{r}_{i,j},y^\mathtt{x}_{i,j}$。
 这里生成校验材料，由对端的 Receiver 执行校验；失败处理见下文 RVOLE Receiver 步骤。
 \begin{equation}
   \label{eq:orch:rand-mta}\tag{rand-mta}
@@ -482,6 +564,7 @@ SoftSpoken Receiver 消息的生成不依赖对端承诺，因此这两类消息
 两个加法分片满足公式 \eqref{eq:orch:rand-mta}。
 其中 $\beta_{i,j}$ 是 RVOLE Receiver 也就是参与方 $j$ 的私有乘法分片；
 $z$-分片是他的私有加法分片，此时还没出现。
+\end{patchnote}
 
 \subsubsection{得到 MtA 加法 $z$-分片}
 
@@ -494,7 +577,7 @@ $\Gamma^\mathtt{x}_{i,j} := y^\mathtt{x}_{i,j} \cdot G$。
 【交换】第二轮，发送以下消息。
 \begin{itemize}
 \item
-  RVOLE Sender 消息 $\tilde a_{i,j}, \eta_{i,j}, \mu_{i,j}$；
+  【补丁｜2026-976｜新增偏移】RVOLE Sender 消息 $\tilde a_{i,j},\eta_{i,j},\mu_{i,j},\boldsymbol\delta_{i,j}$；
 \item
   承诺 $\mathrm{Com}_{R,i}$ 的揭示，即 $R_i, \varepsilon_{R,i}$；
 \item
@@ -513,12 +596,18 @@ $\Gamma^\mathtt{x}_{i,j} := y^\mathtt{x}_{i,j} \cdot G$。
 【检查-P】检查各方发来的 $d$ 与本地计算的 $d$ 是否相等。
 若不一致，按无法定位的情形执行 P 类处理，取 $B=\mathbb S\setminus\{i\}$。
 
+\begin{patchnote}{2026-976｜替换 RVOLE Receiver 调用}
+【初版笔记】校验后直接使用 Receiver 输出；补丁在校验后用 $\boldsymbol\delta$ 修正为实际输入对应的份额。
+
+【补丁写法】
 【检查-P】本方作为 Receiver，与其他方调用子协议 RVOLE。
 输入本方的选择串 $\boldsymbol{\beta}_{j,i}$、单侧 OT 密钥
 $\bigl(\rho^{\beta_{\ell,j,i}}_{\ell,j,i}\bigr)_{\ell\in[0,L)}$，
-以及 $j$ 发来的 $\tilde a_{j,i}, \eta_{j,i}, \mu_{j,i}$，
-子协议须先通过 $\mu_{j,i}$ 的校验，才输出 MtA 加法分片 $z^\mathtt{r}_{j,i}, z^\mathtt{x}_{j,i}$。
+以及 $j$ 发来的 $\tilde a_{j,i},\eta_{j,i},\mu_{j,i},\boldsymbol\delta_{j,i}$。
+子协议须先通过 $\mu_{j,i}$ 的校验，再按输入偏移修正 Receiver 输出，
+才得到实际输入对应的 MtA 加法分片 $z^\mathtt{r}_{j,i},z^\mathtt{x}_{j,i}$。
 若子协议报告失败，则对该对端 $j$ 执行 P 类处理。
+\end{patchnote}
 
 【检查-P】检查 $\Gamma$ 一致性如下式；任一等式失败时，对相应对端 $j$ 执行 P 类处理。
 RVOLE 协议本身不保证输入的乘法分片是下游协议所需的。
@@ -555,7 +644,7 @@ RVOLE 协议本身不保证输入的乘法分片是下游协议所需的。
 
 \section{Sign 1 轮}
 
-目标：用消息哈希 $m$ 绑定 PreSignature，输出 ECDSA 签名 $(r, s)$。
+【补丁｜2026-976｜提前确定消息】目标：把已绑定的消息哈希 $m$ 代入 PreSignature，输出 ECDSA 签名 $(r,s)$。
 
 \subsection{规格}
 
@@ -564,20 +653,31 @@ RVOLE 协议本身不保证输入的乘法分片是下游协议所需的。
 \item
   各方的 PreSignature；
 \item
-  各方相同的消息哈希 $m \in \mathbb{Z}_n$。
+  【补丁｜2026-976】与保存的上下文 $C$ 相同的消息哈希 $m\in\mathbb Z_n$、派生公钥与签名集合。
 \end{itemize}
 
 【输出】标准 ECDSA 签名 $(r, s)$，全员一致。
 
 【安全承诺】广播的 $(s_{0,i}, s_{1,i})$ 不泄露 $\phi_i$ 与私钥分片，
-前提是「PreSignature 用完即弃」。
+【补丁｜2026-929、2026-976｜补充前提】消息已确定、OT 与 RVOLE 满足其接口条件，以及「PreSignature 用完即弃」。
 
 \subsection{实施}
 
-【检查-S】本方先检查输入 PreSignature 中的 $r$ 满足 $1\le r<n$，否则废弃该预签名并中止。
+\begin{patchnote}{2026-929、2026-976｜第三轮与输出检查的完整替换稿}
+【初版笔记】第三轮只交换 $(s_{0,i},s_{1,i})$，重构后执行标准 ECDSA 验签。
+补丁新增上下文检查、完整 $R$ 回传及比较、符号一致性与 low-S 顺序；原有零值检查和一次性使用规则保留。
+
+【补丁写法】
+【检查-S】本方先检查输入与保存的 $C$ 一致，且该 PreSignature 尚未使用。
+检查 $R$ 为合法非无穷远群元素，$r=R.\mathrm{x}\bmod n$ 且 $1\le r<n$；否则废弃该状态并中止。
 本方计算 $s_{0,i} := s_{0,i}^\circ + m \cdot \phi_i$。
-在发送签名份额之前，将该 PreSignature 标记为已使用，然后在第三轮交换 $s_{0,i}, s_{1,i}$。
+在发送签名份额之前，原子地将该 PreSignature 标记为已使用，然后在第三轮交换 $(C,R,s_{0,i},s_{1,i})$。
 无论本次 Sign 成功还是失败，该预签名均不得再次使用。
+
+【检查-S】收齐第三轮消息后，检查各方的上下文与本地 $C$ 相同。
+对每个 $j\ne i$，检查收到的完整点 $\widehat R_j$ 合法且满足 $\widehat R_j=R$。
+比较群元素本身，不能只比较横坐标 $r$；任一检查失败均中止，不输出签名。
+这一步对应 2026/929 第 3 节的 nonce-consistency check，每个对端增加一个群元素，不增加轮次。
 
 【检查-S】收齐份额后，在 $\mathbb Z_n$ 中计算分母 $D := \sum_{j\in\mathbb S}s_{1,j}$。
 若 $D=0$，则中止本次 Sign，废弃该预签名，不能继续求逆。
@@ -591,10 +691,180 @@ RVOLE 协议本身不保证输入的乘法分片是下游协议所需的。
 \end{equation}
 
 【检查-S】将 $s$ 表示为 $0\le s<n$ 的整数；若 $s=0$，则中止并废弃该预签名。
-只有 $1\le r,s<n$ 时，才以消息哈希 $m$ 和派生公钥 $Y'$ 进行 ECDSA 标准验签。
-验签失败则中止并废弃该预签名；验签通过才输出 $(r,s)$，随后销毁本次预签名的秘密状态。
+只有 $1\le r,s<n$ 时，才检查
+\begin{equation}\label{eq:orch:sign-consistency}
+R\stackrel?=s^{-1}mG+s^{-1}rY'.
+\end{equation}
+该等式对应 929 的 sign-consistency check，绑定完整点的符号。
+普通 ECDSA 验签仅比较横坐标，允许 $(r,s)$ 与 $(r,n-s)$，不能单独替代此处的符号检查。
+等式失败时中止；通过后仍执行标准验签，作为实现中的输出检查。
+
+若上下文约定 low-S 输出，在上述原始 $s$ 的点等式检查通过后，再令 $s\gets\min(s,n-s)$。
+规范化可能把验签重构点变为 $-R$，所以不能先规范化再用原来的 $R$ 检查该等式。
+各方采用同一输出规则，验签通过后输出 $(r,s)$，并销毁本次预签名的秘密状态。
 
 【检查-S】上述 Sign 检查失败时，本次尝试均不输出签名。
 若需重试，先确认签名集合未涉及已停用对端，再使用新的 PreSign 会话号。
 重新采样 $r_i,\phi_i$，并重新执行完整的 PreSign。
 本次产生的 OT 扩展材料、MtA 份额及 PreSignature 均随本次状态一起废弃，不能带入重试。
+\end{patchnote}
+
+\section{【补丁｜2026-929】可选的现场零分享}
+\label{sec:orch:fresh-zero}
+
+\begin{patchnote}{2026-929｜本节整段新增，可选替换}
+【初版笔记】Keygen 保存逐对共享种子，签名时本地派生零和掩码。
+
+【补丁写法】
+本节采用 \href{https://eprint.iacr.org/2026/929.pdf}{2026/929，第 3 节与定理 3.1}
+的放宽零分享功能，替换默认的共享种子构造。
+各方须在上下文 $C$ 的 $\mathrm{zeroMode}$ 中约定同一方案，不得在同一会话中混用。
+放宽功能的定义与符号对照见 \hyperref[sec:rerand:relaxed-zero]{再随机化笔记}。
+
+【Keygen 替换范围】省去专用于零和掩码的 $\epsilon^\circ_{i,j}$、$\nu_{i,j}$ 采样，
+以及 $\mathrm{Com}_{\epsilon,i,j}$ 的承诺、揭示和验证，不保存 $\epsilon_{i,j}$。
+Feldman 与 DLog 检查、Base OT、PPRF，以及这些步骤的 transcript 摘要均照常执行。
+该选择只消除零和掩码的长期状态。
+
+【第一轮】对每个 $i<j$，由 $i$ 均匀采样 $a_{i,j}\in\mathbb Z_n$，
+与 nonce 承诺、SoftSpoken Receiver 消息同轮发送给 $j$。
+标量通过认证保密信道传输，消息绑定 $C$、双方编号及零分享用途。
+本轮不计算依赖 $\zeta_i$ 的 $x'_i$；nonce 分片与 OT 选择串的生成可以照常进行。
+
+【第二轮】收齐相应标量并验证编码与上下文后，按公式 \eqref{eq:rerand:fresh-zero} 计算 $\zeta_i$。
+随后按公式 \eqref{eq:orch:xi-derived} 计算 $x'_i$，令 $Y_i=x'_iG$，再生成 RVOLE Sender 消息。
+其余第二、三轮步骤和聚合公钥检查不变；新增检查失败时中止本次会话并销毁临时状态。
+由于 RVOLE Sender 到第二轮才使用 $x'_i$，这个替换不增加多方签名的三轮总数。
+\end{patchnote}
+
+\section{【补丁｜2026-976】两方独立预处理与两轮在线签名}
+\label{sec:orch:two-party-2026}
+
+\begin{patchnote}{2026-976｜以下整节为新增的两方方案}
+【初版笔记】此前只有多方 PreSign／Sign 编排，没有本节这种与密钥、消息无关的两方预处理。
+
+【补丁写法】
+本节单独转写 \href{https://eprint.iacr.org/2026/976.pdf}{2026/976，Protocol 6.2}。
+为对应论文，双方编号改用 $i\in\{0,1\}$，另一方记为 $j=1-i$。
+双方最终持有加法私钥分片 $x'_0,x'_1$，公开分片为 $Y_i=x'_iG$，共同公钥为 $Y'=Y_0+Y_1$。
+消息记作哈希后的标量 $m$，保持本笔记其余部分的记号。
+
+【适用前提】论文第 6.1 节要求有效、一致的私钥与公钥分片，证明还依赖兼容 Keygen 对恶意份额的提取。
+因此，不能直接把本节套在 DKLS23 原始 relaxed Keygen 上，也不能仅凭「采用 Feldman」就省略兼容性检查。
+本篇前述 Keygen 尚未逐项对应完整证明，接入本节前仍需核实这一前提。
+两方各只有一个对端，因而可以直接取本地 RVOLE 标量 $\beta_i$ 作为盲化分片，省去多方的 $\psi$ 对齐与零分享功能。
+
+\subsection{【补丁｜2026-976】规格与状态生命周期}
+
+【预处理输入】只有双方身份、协议与参数、唯一预处理编号 $\mathrm{ppid}$；不输入消息或实际签名密钥。
+默认使用 \hyperref[sec:rvole:variants]{RVOLE Variant II}，
+在 secp256k1、$\lambda_c=\lambda_s=128$ 时取 $L=896$、$N_1=2$、$N_2=1$。
+本节选择每份预处理独立生成 Base OT 与 PPRF，初始化记录与本批扩展消息一起用于 $T_{\mathrm{OT}}$。
+
+【在线输入】双方共同确定消息哈希 $m$、$Y'$、$Y_0,Y_1$，各自输入 $x'_i$。
+在线上下文 $C_{\mathrm{on}}$ 绑定 $\mathrm{ppid}$、唯一签名实例号、双方身份、密钥标识、
+上述公开输入、参数与输出规则；检查 $Y'=Y_0+Y_1$ 及本方 $Y_i=x'_iG$。
+本节允许在这时才选定 BIP-32 派生密钥，但相应私钥分片及公开分片仍须满足适用前提。
+
+【一次性消费】预处理完成后状态为待用；发送任何在线消息之前，原子地绑定 $C_{\mathrm{on}}$ 并标记为已消费。
+一份状态只能绑定一个密钥与一个消息，成功、失败或取消后都销毁；崩溃恢复不得将其重新放回待用池。
+预处理期间失败则销毁该批全部临时材料，重试使用新的 $\mathrm{ppid}$ 和随机数。
+这些规则也适用于仍未知消息时失败的预处理，不得复用其中已经生成的相关量。
+
+\subsection{【补丁｜2026-976】预处理的实施}
+
+【初始化】双方为本批独立执行两个方向的 Base OT 与 PPRF，再提供两个方向的随机 OT 扩展。
+随机 OT 的接口与 transcript 绑定条件沿用 \hyperref[sec:rvole:parameters-model]{RVOLE 完全版}。
+下面的两轮按 RVOLE 的 OT 混合模型阶段划分；具体 Base OT 初始化所需轮次另外计入离线阶段。
+
+【预处理第一轮】各方采样 nonce 分片 $r_i\in\mathbb Z_n$，计算 $R_i=r_iG$。
+对 $R_i$ 作隐藏承诺，绑定 $\mathrm{ppid}$、双方身份及用途，并保存揭示随机数。
+同时执行本方作为 Receiver 的随机 OT 扩展，选择新鲜的 $L$ 比特选择串。
+发送 nonce 承诺与扩展消息；此时不揭示 $R_i$，也尚未得到 Variant II 的标量 $\beta_i$。
+
+【预处理第二轮】验证对端的扩展消息后，各方作为 Sender 采样独立随机输入
+$(\widetilde r_i,\widetilde x_i)\in\mathbb Z_n^2$，生成 Variant II 的 RVOLE 消息。
+另取一个随机牺牲负载用于检查，挑战绑定 $T_{\mathrm{OT}}$ 与修正矩阵。
+生成最后消息后派生 gadget，再聚合 Sender 的两份输出，记为 $a_i^{\mathrm r},a_i^{\mathrm x}$。
+将 RVOLE 消息发给另一方；仍不揭示 nonce 承诺。
+
+【预处理收尾】各方作为 Receiver 验证对端 RVOLE 消息，重算 gadget，得到 $\beta_i$，
+以及两份 Receiver 输出 $b_i^{\mathrm r},b_i^{\mathrm x}$。
+相关量满足下式；上标区分 nonce 乘积与私钥乘积，下标始终表示份额持有人。
+\begin{equation}\label{eq:orch:2p-correlations}
+\begin{aligned}
+a_i^{\mathrm r}+b_j^{\mathrm r}&=\widetilde r_i\beta_j,\\
+a_i^{\mathrm x}+b_j^{\mathrm x}&=\widetilde x_i\beta_j,
+\qquad j=1-i.
+\end{aligned}
+\end{equation}
+各方保存八个标量与承诺信息：
+\begin{equation}\label{eq:orch:2p-state}
+\mathrm{State}_i:=
+ (\beta_i,r_i,\widetilde r_i,\widetilde x_i,
+   a_i^{\mathrm r},a_i^{\mathrm x},b_i^{\mathrm r},b_i^{\mathrm x}).
+\end{equation}
+此外保存对端的 nonce 承诺、本方揭示随机数、预处理编号与状态标记。
+RVOLE 临时矩阵与本批独立初始化的秘密材料在成功压缩状态后即可销毁。
+预处理期间不公开 $R_0+R_1$；消息和实际签名密钥都尚未参与这些计算。
+
+\subsection{【补丁｜2026-976】在线签名的实施}
+
+【在线第一轮】确定并绑定 $C_{\mathrm{on}}$ 后，先消费状态，再计算修正量与一致性点：
+\begin{equation}\label{eq:orch:2p-corrections}
+\begin{aligned}
+\gamma_i^{\mathrm r}&:=r_i-\widetilde r_i,&
+\gamma_i^{\mathrm x}&:=x'_i-\widetilde x_i,\\
+\Gamma_i^{\mathrm r}&:=a_i^{\mathrm r}G,&
+\Gamma_i^{\mathrm x}&:=a_i^{\mathrm x}G.
+\end{aligned}
+\end{equation}
+发送 $C_{\mathrm{on}}$、两个修正量、两个一致性点，同时揭示之前承诺的 $R_i$。
+nonce 的揭示发生在消息和密钥已确定之后。
+这两类修正量把完全随机的 VOLE 转为实际输入的乘积，不能与多方用于对齐盲化值的 $\psi$ 混淆。
+
+【在线第二轮】检查收到的上下文、nonce 承诺揭示、所有标量编码与群元素合法性。
+本方将 Receiver 输出修正为实际输入对应的份额：
+\begin{equation}\label{eq:orch:2p-shift}
+z_i^{\mathrm r}:=b_i^{\mathrm r}+\gamma_j^{\mathrm r}\beta_i,
+\qquad
+z_i^{\mathrm x}:=b_i^{\mathrm x}+\gamma_j^{\mathrm x}\beta_i.
+\end{equation}
+检查
+\begin{equation}\label{eq:orch:2p-check}
+\begin{aligned}
+z_i^{\mathrm r}G&\stackrel?=\beta_iR_j-\Gamma_j^{\mathrm r},\\
+z_i^{\mathrm x}G&\stackrel?=\beta_iY_j-\Gamma_j^{\mathrm x}.
+\end{aligned}
+\end{equation}
+任一检查失败都中止并销毁本批状态。
+通过后计算 $R=R_0+R_1$，检查 $R\ne\mathcal O$，再取 $r=R.\mathrm{x}\bmod n$ 并检查 $r\ne0$。
+随后计算并发送绑定 $C_{\mathrm{on}}$ 的两个签名份额 $(u_i,w_i)$：
+\begin{equation}\label{eq:orch:2p-sign-shares}
+\begin{aligned}
+u_i&:=r_i\beta_i+a_i^{\mathrm r}+z_i^{\mathrm r},\\
+v_i&:=x'_i\beta_i+a_i^{\mathrm x}+z_i^{\mathrm x},\\
+w_i&:=m\beta_i+rv_i.
+\end{aligned}
+\end{equation}
+由两份相关量可得 $u_0+u_1=(r_0+r_1)(\beta_0+\beta_1)$，
+以及 $v_0+v_1=(x'_0+x'_1)(\beta_0+\beta_1)$。
+这说明签名份额所需的两组乘积已经在本地加法中合成。
+
+【输出】收齐并验证对端消息的上下文与标量编码后，令 $D=u_0+u_1$。
+若 $D=0$ 则中止，否则计算 $s=(w_0+w_1)D^{-1}$，并检查 $s\ne0$。
+按 Protocol 6.2 执行标准 ECDSA 验签，通过后按共同约定进行 low-S 规范化并输出。
+成功或任何中止都销毁该批状态；本节没有多方的额外 $R$ 回传步骤，不混用前述多方消息格式。
+
+\subsection{【补丁｜2026-976】通信与存储口径}
+
+2026/976 第 7 节给出的状态包括八个 256 比特标量、256 比特对端承诺与 128 比特揭示信息。
+合计为 $8\cdot32+32+16=304$ 字节，未计会话元数据、状态标记及存储封装。
+本篇若沿用其他章节的 256 比特揭示随机数，则上述密码学状态为 320 字节。
+
+按论文的紧凑点编码与 128 比特揭示信息，在线第一轮每方发送三个群元素、两个标量与揭示信息，
+第二轮再发送两个标量，合计约 1900 比特，即约 0.24 KB。
+采用 33 字节点编码与 32 字节揭示信息时，相应净负载为 $3\cdot33+4\cdot32+32=259$ 字节。
+这些数字均不含上下文、认证与网络封装，也不包含离线 OT 和 VOLE 的通信。
+论文表 1 的 436、696、1408 个 OT 使用 $\lambda_s=60$，不能直接当作本节 $\lambda_s=128$ 的成本。
+\end{patchnote}

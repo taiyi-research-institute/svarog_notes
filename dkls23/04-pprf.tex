@@ -9,6 +9,13 @@ PRF，可打孔伪随机函数）------ 用 $k$ 个二选一 Base OT
 得到除打孔叶子之外的一切。Base OT 的实施见 Endemic OT，下游消费见
 SoftSpokenOT。本篇只讨论二叉的情况。
 
+\begin{patchnote}{2026-976｜新增初始化 transcript 保存要求}
+2026/929 与 2026/976 未直接修改本篇的建树、打孔和校验步骤。
+2026/976 调整的是下游 RVOLE 所需的扩展 OT 数量及挑战绑定；树深与树数不随扩展长度同比增加。
+初始化完成时还应保存双方一致的 Base OT 与 PPRF 通信记录摘要，供
+\hyperref[sec:rvole:parameters-model]{RVOLE 的 OT transcript 绑定}使用。
+\end{patchnote}
+
 \section{介绍 GGM 树}
 
 GGM 树是一棵完美二叉树，深度为 $k$，叶子数 $q=2^k$。
