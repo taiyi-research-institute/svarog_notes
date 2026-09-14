@@ -93,10 +93,10 @@ LHL 给出
 $L\ge\kappa+3\lambda_s$。
 
 【Variant II】双方从 Sender 的最后一条消息派生 gadget。
-沿用 RVOLE 的记号，令 $M_2=\mathrm{Enc}(\tilde a,\eta,\mu)$，再计算
+沿用 RVOLE 的记号，令最后消息的摘要 $M_2=\mathrm{RO}(\texttt{"rvole-msg"},\tilde a,\eta,\mu)$，再计算
 \begin{equation}
-\boldsymbol g:=\mathrm{RO}_{\mathbb Z_n^L}
- \bigl(\mathrm{Enc}(\mathrm{sid},\texttt{"gadget-II"},T_{\mathrm{OT}},M_2)\bigr).
+\boldsymbol g:=\mathrm{RO}(\mathrm{sid},\texttt{"gadget-II"},T_{\mathrm{OT}},M_2)
+  \in \mathbb Z_n^L.
 \end{equation}
 Sender 可以尝试多个候选消息并查询随机预言机，参数须计入这种研磨能力。
 论文给出的充分条件为 $L\ge\kappa+2\lambda_c+3\lambda_s$。
@@ -104,8 +104,8 @@ Sender 可以尝试多个候选消息并查询随机预言机，参数须计入�
 
 【Variant III】双方在协议开始时生成
 \begin{equation}\label{eq:misc-gadget:gvec}
-\boldsymbol g:=\mathrm{RO}_{\mathbb Z_n^L}
- \bigl(\mathrm{Enc}(\mathrm{sid},\texttt{"gadget-III"})\bigr).
+\boldsymbol g:=\mathrm{RO}(\mathrm{sid},\texttt{"gadget-III"})
+  \in \mathbb Z_n^L.
 \end{equation}
 这保留了多方 DKLS23 所需的早期 Receiver 标量，充分条件为
 \begin{equation}

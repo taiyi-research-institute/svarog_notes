@@ -127,3 +127,7 @@ refs.bib        参考文献
 `template/src/` 是 md 原稿，根目录 `*.tex` 是成品片段。
 转换分四步：`preprocess.py → pandoc → postprocess.py → numberize.py`，
 详见各脚本 docstring。需要重转时用。
+
+补丁框首段的 🛡️ 由 TeX Live 自带的 `twemojis` 提供。
+图案来自 Twitter, Inc 及其他贡献者的 [Twemoji](https://github.com/twitter/twemoji)，
+采用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 许可。

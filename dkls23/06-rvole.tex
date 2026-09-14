@@ -15,15 +15,16 @@
   所选密钥 $\rho^{\beta_j}_j$，不知另一个密钥 $\rho_j^{1-\beta_j}$。
 \end{itemize}
 
-记号约定：$\vec\beta \in \left\{0,1\right\}^L$ 指选项串本身（即 SoftSpokenOT 的 $\beta$），
+记号约定：$\boldsymbol\beta \in \left\{0,1\right\}^L$ 指选项串本身（即 SoftSpokenOT 的 $\beta$），
 而不带箭头的 $\beta := \sum_{j\in[0,L)}\beta_j g_j \pmod n$ 专指它的 gadget 加权聚合。
 
 拿到这些密钥后，兑现随机 MtA 关系 $y + z := w\beta \pmod n$。其中 Sender 输入 $w$，输出 $y$；
 Receiver 输入 $\beta$，输出 $z$。注意本协议不兑现 ECDSA MtA 关系 $y + z := wx \pmod n$。
 
-本协议每次使用新鲜随机的 $\vec\beta$，再由 ECDSA 编排层转换为所需的乘法关系。
+本协议每次使用新鲜随机的 $\boldsymbol\beta$，再由 ECDSA 编排层转换为所需的乘法关系。
 安全性尚待理解，暂不补写安全论证。
 协议原文见 \href{https://eprint.iacr.org/2023/765.pdf}{DKLS23 Protocol 5.2}。
+
 \begin{patchnote}{2026-976｜本篇修订范围}
 本篇完全版按 \href{https://eprint.iacr.org/2026/976.pdf}{Asharov，2026/976，第 4 节}
 更新参数、OT 接口与挑战绑定；默认采用提前生成 gadget 的 Variant III。
@@ -63,7 +64,9 @@ z &:= \sum_j M^{\beta_j}_j \pmod{n}.
 我们把 $\rho_j^0, \rho_j^1$ 扩展为 $\mathbb{Z}_n$ 标量，如公式 \eqref{eq:06-rvole:alphas}。
 这里的扩展及域采样遵循\hyperref[sec:rvole:parameters-model]{完全版的参数与模型约定}，不能把短密钥直接取模当作均匀域元素。
 \begin{equation}\label{eq:06-rvole:alphas}
-\alpha_j^b := \mathrm{PRF}^{\mathbb Z_n}_{\rho_j^b}\bigl(\mathrm{Enc}(\mathtt{sid},\texttt{"ot-pad"},j,0)\bigr),\quad b\in\{0,1\}.
+\alpha_j^b := \mathrm{PRF}_{\rho_j^b}
+  \circ \mathrm{RO}(\mathtt{sid},\texttt{"ot-pad"},j,0)
+  \in \mathbb Z_n,\quad b\in\{0,1\}.
 \end{equation}
 
 Sender 拥有 $\alpha_j^0,\alpha_j^1$，以及秘密因子 $w$。
@@ -140,19 +143,17 @@ z := \sum_j g_j \cdot t_j \pmod{n}.
 
 \section{RVOLE 协议完全版}
 
-\begin{patchnote}{2026-976｜完全版改用随机内核，再转换指定输入}
-【初版笔记】完全版将 Sender 持有的指定输入 $w_i$ 直接放入修正矩阵。
+\begin{patchnote}{2026-976｜先执行随机 VOLE，再转换为 Sender 指定输入}
+【初版】将 Sender 指定的乘法分片 $w_i$ 直接放入修正矩阵。
 
-【补丁写法】
-2026/976 的内核先生成双方输入均随机的 VOLE，再用标量偏移适配 Sender 指定输入。
-本节先描述该随机内核，令 $w_i$ 表示新鲜随机的功能负载，最后给出指定输入转换。
+【补丁】先执行 VOLE 协议，双方都输入随机乘法分片；再用标量偏移转换为 Sender 指定输入。
+本节先描述该随机 VOLE 协议，令 $w_i$ 表示新鲜随机的乘法分片，协议结束时转换为指定输入。
 这样既可同轮接入多方签名，也可将转换推迟到两方在线阶段。
 \end{patchnote}
 
 恶意 Sender 可能对不同的 OT 实例 $j$ 使用不同的 $w' \neq w$，
 破坏 MtA 关系 $y + z = w \cdot \beta \pmod n$ 的正确性。
-为此，我们约定每个 OT 实例携带 $N_2$ 个负载用于校验。
-【补丁｜2026-976】$N_2$ 对应原文的参数 $\rho$；本篇采用 2026/976 的条件，在 secp256k1 下取 $N_2=1$。
+为此，我们约定每个 OT 实例携带 $N_2$ 个负载用于校验；本篇采纳 2026-976 的设置，令 $N_2=1$。
 决定引入校验维度以后，将使 RVOLE 内部运算变得向量化。既然如此，
 不妨继续引入 $(N_1-1)$ 个 MtA 关系。对于 ECDSA 签名，有 $N_1=2$。
 
@@ -166,12 +167,12 @@ y_{i}+z_{i} := w_{i}\cdot \beta \pmod n,
 \label{sec:rvole:parameters-model}
 
 \begin{patchnote}{2026-976｜替换 OT 数量与校验维度}
-【初版笔记】$L=\kappa+2\lambda_s$，$N_2=\lceil\kappa/\lambda_c\rceil$。
+【初版】$L=\kappa+2\lambda_s$，$N_2=\lceil\kappa/\lambda_c\rceil$。
 在 $\kappa=256$、$\lambda_c=\lambda_s=128$ 时，旧值为 $L=512$、$N_2=2$。
 
-【补丁写法】
-【参数】本文标量域为 $\mathbb Z_n$，其中 $n$ 是素数阶，$\kappa=\lceil\log_2 n\rceil$。
-$\lambda_c$ 与 $\lambda_s$ 分别是计算安全参数和统计安全参数，不能与模数位宽混为一谈。
+【补丁】
+本文标量域为 $\mathbb Z_n$，其中 $n$ 是素数阶，$\kappa=\lceil\log_2 n\rceil$。
+$\lambda_c$ 与 $\lambda_s$ 分别是计算安全参数和统计安全参数，不必然等于 $\kappa$。
 \href{https://eprint.iacr.org/2023/765.pdf}{DKLS23 Protocol 5.2} 的记号与本文对应如下：
 \begin{center}
 \begin{tabular}{lll}
@@ -208,44 +209,64 @@ ECDSA 同时计算两个乘积，因此 $N_1=2$，每个 OT 实例携带三个�
 【域与采样】所有 $w_k,\alpha^b_{j,k},\tilde a_{j,k},\theta_{k,i},\eta_k,\mu_{j,k},y_i,z_i$
 均为 $\mathbb Z_n$ 元素，所有标量运算均模 $n$；最终摘要 $\mu$ 是比特串。
 理想 OT 扩展接口直接提供独立均匀的域元素向量。
-短 OT 密钥 $\rho_j^b$ 是实现该接口的种子，本文用以它为密钥的 $\mathrm{PRF}^{\mathbb Z_n}_{\rho_j^b}$ 表示域值扩展，
+短 OT 密钥 $\rho_j^b$ 是实现该接口的种子，本文用以它为密钥的 $\mathrm{PRF}_{\rho_j^b}$ 表示域值扩展，
 同一实例的 Receiver 只计算所选种子的扩展值。
 实际扩展可由带域分离的密码学伪随机流实现：逐次读取 $\kappa$ 比特，解释为整数，拒绝不小于 $n$ 的值。
-在理想随机流下，该拒绝采样精确均匀；实际密码学扩展只提供计算上的伪随机性。
-因此，不能将「理想接口中的独立均匀」直接称为实际短种子扩展的无条件独立均匀。
+在理想随机流下，该拒绝采样精确均匀。
 
 \begin{patchnote}{2026-976｜替换 gadget 实例化，补充 OT 绑定条件}
-【初版笔记】gadget 采用可信公共随机串，可跨实例复用；挑战只绑定会话号、用途与 $\tilde a$。
+【初版】gadget 采用可信公共随机串，可跨实例复用；挑战只绑定会话号、用途与 $\tilde a$。
 
-【补丁写法】
-【公开随机量】默认 Variant III 在协议开始时派生公开 gadget：
-\begin{equation}\label{eq:rvole:gadget-iii}
-\boldsymbol g:=\mathrm{RO}_{\mathbb Z_n^L}
-  \bigl(\mathrm{Enc}(\mathtt{sid},\texttt{"gadget-III"})\bigr).
+【补丁】Variant III 在协议开始时派生公开 gadget：
+\begin{equation}
+  \label{eq:rvole:g3}\tag{g3}
+  \boldsymbol g:=\mathrm{RO}(\mathtt{sid},\texttt{"gadget-III"})
+  \in \mathbb Z_n^L.
 \end{equation}
-这里按 2026/976 附录 B.3 的会话随机预言机设置执行，域采样遵循上述拒绝采样规则。
-每个有向 RVOLE 实例使用唯一的 $\mathtt{sid}$；本篇不再默认跨实例复用同一 gadget。
-挑战 $\theta$ 是由公开 transcript 决定的随机预言机输出，双方都能重算，不是带秘密密钥的 PRF。
-下文以 $\mathrm{RO}_{\mathbb Z_n^{N_2\times N_1}}$ 表示均匀域矩阵输出，
-以 $\mathrm{RO}_{\{0,1\}^{2\lambda_c}}$ 表示用于压缩校验材料的摘要输出。
-两种用途分别使用标签 \texttt{"challenge"} 与 \texttt{"check"}；示例参数下摘要长 256 比特。
-挑战的 OT 绑定按下段补充，不能只照抄原文 Protocol 5.2 的哈希输入。
 
-【OT 接口与 transcript】2026/976 的定理使用 Sender Random OT：
-即使 Sender 恶意，理想功能也为其生成随机消息，禁止其任意指定两侧 OT 输入。
-Endemic OT 的抽象允许恶意 Sender 自选输入，不能直接替代这个更强的接口。
-具体的 Base OT、PPRF、SoftSpoken 组合必须说明最终随机 OT 接口的安全保证；
-本篇记录组合所需条件，不把现有笔记中的种子扩展自动视为完成了该证明。
+式中 RO 是「随机预言机（Random Oracle）」，是一个公开可查询的理想随机函数。
+对每个此前未查询过的输入，它从约定的输出集合中独立均匀抽取一个值，并永久记录；
+此后任何人查询相同输入，都得到相同输出。
+注意“公开”指任何人都能查询，不表示某方的全部查询记录公开。
+具体到公式（g3），其输出集合是 $\mathbb Z_n^L$，因此 $\boldsymbol g$ 为均匀随机向量；
+以相同输入查询，即得到相同的 $\boldsymbol g$。
 
-记 $T_{\mathrm{OT}}$ 为双方按固定顺序编码的具体 OT 通信记录，或其带域分离摘要。
-它包含产生本批 OT 的初始化记录与本次扩展消息，并绑定双方身份、方向、协议版本和批次号。
-采用已有初始化时，应保存其摘要并与本次扩展记录一起绑定；不得拼入双方不同的秘密种子或输出。
-在挑战中加入 $T_{\mathrm{OT}}$ 是 2026/976 第 4.5 节建议的实施措施。
-若以它修补 Endemic OT 路线，还须证明具体 transcript 绑定 Sender 的 OT 输入；
-仅在哈希输入里增加一个字段，不能替代这项性质。
+
+【时机与实例标识】2026-976 附录 B.3 规定，双方拿到 $\mathtt{sid}$ 后，
+即可在 VOLE 协议开始时计算 $\boldsymbol g$。
+本文另作实例标识约定：同一个有向调用的双方使用相同的 $\mathtt{sid}$，不同的有向调用使用不同的 $\mathtt{sid}$。
+一种构造为
+\begin{equation*}
+\mathtt{sid}:=\mathrm{RO}(\texttt{"rvole-sid"},\mathtt{context},i,j,\mathtt{call}).
+\end{equation*}
+其中 $\mathtt{context}$ 唯一标识上层会话，$i$、$j$ 分别标识 Sender、Receiver，
+$\mathtt{call}$ 是该会话、该方向内不重复的调用编号。
+重试使用新调用编号；进程重启或计数器重置也不得复用完整标识。
+底层调用元组不得重复；摘要形式的 $\mathtt{sid}$ 另依赖哈希抗碰撞性。
+这个元组的摘要及唯一性管理是本文的实施约定，B.3 没有给出具体构造。
+
+【OT 通信记录】$T_{\mathrm{OT}}$ 是以下通信记录的摘要，绑定生成本批 OT 所涉及、双方共同可见的协议消息。
+对每条消息，编码子协议标识、轮次、发送方、接收方、消息序号及完整消息内容，记为 $M_a$。
+按协议规定的顺序排列，构造
+\begin{equation*}
+T_{\mathrm{OT}}:=\mathrm{RO}(\texttt{"ot-transcript"},\mathtt{sid},M_0,\ldots,M_{r-1}),
+\end{equation*}
+其中 $r$ 是记录中的消息条数。
+双方须使用同一排序规则，不能按各自的网络到达顺序排列。
+记录包含本批 OT 所依赖的 Base OT、PPRF 初始化消息及本次 OT 扩展消息，
+不包含秘密种子、选择位或未发送的本地输出。
+
+复用初始化时，可以在记录中引用其带域分离的抗碰撞摘要，继续绑定本批扩展消息。
+上式直接将完整记录压缩为带域分离的抗碰撞摘要 $T_{\mathrm{OT}}$。
+双方须固定相同的消息编码、排序、哈希算法及用途标签；哈希输入包含协议版本、域与维度参数。
+这里给出的是本文的编码约定，2026-976 第 4.5 节要求在派生挑战时纳入具体 OT 通信记录。
+该节同时要求具体 OT 协议的记录能绑定 Sender 的 OT 输入；
+仅对通信记录取哈希，并不会自动获得这种输入绑定性质。
 \end{patchnote}
 
-【编码】$\mathrm{Enc}$ 表示无歧义编码，包含协议版本、域与维度参数，以及各字段的长度或类型。
+【编码与哈希】本文将参数编码隐含在 $\mathrm{RO}(\cdots)$ 中，表示先无歧义编码，再查询随机预言机。
+编码包含协议版本、域与维度参数，以及各字段的长度或类型；不同用途使用不同标签。
+摘要输出默认属于 $\{0,1\}^{2\lambda_c}$；域向量等其他输出范围在相应公式末尾注明。
 域元素以 $[0,n)$ 的代表元作定长大端编码；数组按索引递增排列，矩阵先行后列。
 具体地，$\tilde a$ 按 $j$、$k$ 排列，$\eta$ 按 $k$ 排列，校验矩阵按 $j$、$k$ 排列。
 数组不得按无序集合序列化；消息中的维度、元素范围和编码不合法时即拒绝。
@@ -274,10 +295,10 @@ III & 协议开始时派生 & 2 & 公式 \eqref{eq:rvole:variant-iii-bound} \\
 在本文的 $\lambda_s=128$ 下，相应充分用量为 640、896、2656；默认 III 分块对齐后取 2688。
 
 【Variant II 的实施差异】先执行 OT 扩展，Sender 构造修正矩阵、挑战和校验消息。
-令 $M_2:=\mathrm{Enc}(\tilde a,\eta,\mu)$，再派生
+令最后消息的摘要 $M_2:=\mathrm{RO}(\texttt{"rvole-msg"},\tilde a,\eta,\mu)$，再派生
 \begin{equation}\label{eq:rvole:gadget-ii}
-\boldsymbol g:=\mathrm{RO}_{\mathbb Z_n^L}\bigl(
-  \mathrm{Enc}(\mathtt{sid},\texttt{"gadget-II"},T_{\mathrm{OT}},M_2)\bigr).
+\boldsymbol g:=\mathrm{RO}(\mathtt{sid},\texttt{"gadget-II"},T_{\mathrm{OT}},M_2)
+  \in \mathbb Z_n^L.
 \end{equation}
 Sender 此时才计算 $y_i$；Receiver 校验 $\mu$ 后重算同一个 $\boldsymbol g$，再计算 $\beta$ 和 $z_i$。
 挑战仍须绑定 $T_{\mathrm{OT}}$ 与 $\tilde a$，而 gadget 还绑定完整的最后消息。
@@ -298,9 +319,9 @@ I、II 的 Receiver 均在收到 Sender 第二轮消息后才得到标量 $\beta
 【输入】
 Sender 在协议内独立均匀采样 $N_1$ 个功能负载 $w_i$，$i\in[0,N_1)$，
 以及 $N_2$ 个校验负载 $w_k$，$k\in[N_1,N_1+N_2)$。
-Receiver 持有秘密选项串 $\vec\beta \in \left\{0,1\right\}^L$，
+Receiver 持有秘密选项串 $\boldsymbol\beta \in \left\{0,1\right\}^L$，
 对应着秘密因子 $\beta=\sum_{j\in[0,L)} \beta_j \cdot g_j$。
-注意 $\vec\beta$ 的长度大于 $\beta$ 的比特数。
+注意 $\boldsymbol\beta$ 的长度大于 $\beta$ 的比特数。
 双方还持有相同的 $T_{\mathrm{OT}}$，用于把挑战与本批 OT 绑定。
 
 【输出】
@@ -323,9 +344,9 @@ Sender 首先对 OT 密钥 $\rho_j^b$ 进行衍生，
 Sender 计算加法份额，如公式 \eqref{eq:06-rvole:yi}。
 \begin{align}\label{eq:06-rvole:extkey}
 \tag{extkey}
-\alpha^b_{j,k} &:= \mathrm{PRF}^{\mathbb Z_n}_{\rho_j^b}\bigl(
-\mathrm{Enc}(\mathtt{sid},\texttt{"ot-pad"},j,k)
-\bigr)\in\mathbb Z_n,
+\alpha^b_{j,k} &:= \mathrm{PRF}_{\rho_j^b}
+  \circ \mathrm{RO}(\mathtt{sid},\texttt{"ot-pad"},j,k)
+  \in \mathbb Z_n,
 b\in\left\{0,1\right\}.
 \\
 \tilde{a}_{j,k} &:= \alpha^0_{j,k}-\alpha^1_{j,k}+w_{k}.
@@ -345,34 +366,42 @@ y_{i} &:= -\sum_j g_j\cdot \alpha^0_{j,i} ~.
 \label{sec:rvole:challenge-response}
 
 \begin{patchnote}{2026-976｜挑战公式增加 OT transcript}
-【初版笔记】$(\theta_k)_k=\mathrm{RO}(\mathrm{Enc}(\mathtt{sid},\texttt{"challenge"},\tilde a))$。
+【初版笔记】$(\theta_k)_k=\mathrm{RO}(\mathtt{sid},\texttt{"challenge"},\tilde a)$。
 下方仅挑战公式增加 $T_{\mathrm{OT}}$；线性响应与哈希响应的算式沿用原结构。
 
 【补丁写法】
 在本节剩余内容里，$j\in[0, L)$，也就是索引每个 OT实例；
 $k\in[N_1, N_1+N_2)$，也就是索引每个校验负载。
 
-对每个 $k$，
-Sender 首先从已知信息派生出挑战向量 $\theta_k$，如公式 \eqref{eq:06-rvole:ch}。
+Sender 首先从已知信息派生出挑战矩阵，如公式 \eqref{eq:06-rvole:ch}。
+矩阵的第 $k$ 行为挑战向量 $\theta_k$。
+这里的挑战由 $T_{\mathrm{OT}}$ 与 $\tilde a$ 确定，按下式公开重算。
+标签 \texttt{"challenge"} 与校验摘要的 \texttt{"check"} 分隔两种用途；
+挑战输出为 $\mathbb Z_n^{N_2\times N_1}$ 中的矩阵，摘要输出为 $2\lambda_c$ 比特串，示例参数下为 256 比特。
+\begin{equation}
+\label{eq:06-rvole:ch}\tag{ch}
+\begin{aligned}
+&\bigl(\theta_k \mid k\in[N_1,N_1+N_2)\bigr)
+\\
+&\quad := \mathrm{RO}(\mathtt{sid},\texttt{"challenge"},T_{\mathrm{OT}},\tilde a)
+  \in \mathbb Z_n^{N_2\times N_1}.
+\end{aligned}
+\end{equation}
+
 然后计算线性响应，如公式 \eqref{eq:06-rvole:resp-lin}，
 以及哈希响应，如公式 \eqref{eq:06-rvole:resp-ha}。
 \begin{align}
-\label{eq:06-rvole:ch}\tag{ch}
-(\theta_k)_{k\in[N_1,N_1+N_2)}
-&:= \mathrm{RO}_{\mathbb Z_n^{N_2\times N_1}}\bigl(
-\mathrm{Enc}(\mathtt{sid},\texttt{"challenge"},T_{\mathrm{OT}},\tilde a)\bigr).
-\\
 \label{eq:06-rvole:resp-lin}\tag{resp-lin}
 \eta_k &:= w_{k}+\sum_{i\in[0,N_1)}\theta_{k,i}\cdot w_{i} \pmod n,
 \\
-\eta &:= (\eta_k)_{k\in[N_1,N_1+N_2)}.
+\eta &:= \bigl(\eta_k \mid k\in[N_1,N_1+N_2)\bigr).
 \\
 \mu_{j,k} &:= \alpha^0_{j,k}
   +\sum_{i\in[0,N_1)}\theta_{k,i}\cdot \alpha^0_{j,i},
 \\
 \label{eq:06-rvole:resp-ha}\tag{resp-ha}
-\mu &:= \mathrm{RO}_{\{0,1\}^{2\lambda_c}}\bigl(
-\mathrm{Enc}(\mathtt{sid},\texttt{"check"},(\mu_{j,k})_{j,k})\bigr).
+\mu &:= \mathrm{RO}(\mathtt{sid},\texttt{"check"},(\mu_{j,k})_{j,k})
+  \in \{0,1\}^{2\lambda_c}.
 \end{align}
 
 最后，Sender 发送 $\tilde a$，$\eta$，$\mu$。
@@ -401,9 +430,8 @@ t_{j,k} &:= \alpha^{\beta_j}_{j,k}+\beta_j\cdot \tilde{a}_{j,k}, \\
 - \beta_j\cdot\eta_k, 
 \\
 \label{eq:06-rvole:mu-hat}
-\hat\mu &:= \mathrm{RO}_{\{0,1\}^{2\lambda_c}}\bigl(
-  \mathrm{Enc}(\mathtt{sid},\texttt{"check"},(\hat\mu_{j,k})_{j,k})
-\bigr).
+\hat\mu &:= \mathrm{RO}(\mathtt{sid},\texttt{"check"},(\hat\mu_{j,k})_{j,k})
+  \in \{0,1\}^{2\lambda_c}.
 \\
 \label{eq:06-rvole:zi}\tag{zi}
 z_{i} &:= \sum_{j}g_j\cdot t_{j,i} ~.
@@ -420,7 +448,7 @@ z_{i} &:= \sum_{j}g_j\cdot t_{j,i} ~.
 \delta_i:=a_i-w_i,
 \qquad i\in[0,N_1).
 \end{equation}
-Receiver 在内核校验通过并获得 $\beta$ 后，把输出修正为
+Receiver 在随机 VOLE 的校验通过并获得 $\beta$ 后，把输出修正为
 \begin{equation}\label{eq:rvole:shifted-output}
 z_i^{\mathrm{actual}}:=z_i+\beta\delta_i,
 \qquad y_i+z_i^{\mathrm{actual}}=a_i\beta.
@@ -431,8 +459,8 @@ Sender 的加法份额 $y_i$ 无需改变；该转换对应 2026/976 第 4.4 节
 
 多方流程中，签名方 $p$ 所需的 $(a_0,a_1)=(r_p,x'_p)$ 已在 RVOLE Sender 阶段确定，
 所以偏移向量 $\boldsymbol\delta$ 随 $(\tilde a,\eta,\mu)$ 同轮发送，多增加两个标量而不增加轮次。
-Variant II 的 gadget 仍从内核消息 $M_2$ 派生，指定输入偏移属于外层转换。
-两方独立预处理则只保存随机内核输出，直到在线阶段才发送偏移；不要把私钥提前放入随机内核。
+Variant II 的 gadget 仍从随机 VOLE 的消息摘要 $M_2$ 派生，指定输入偏移属于外层转换。
+两方独立预处理则只保存随机 VOLE 的输出，直到在线阶段才发送偏移；不要把私钥提前用作随机 VOLE 的输入。
 \end{patchnote}
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
@@ -448,8 +476,8 @@ Variant II 的 gadget 仍从内核消息 $M_2$ 派生，指定输入偏移属于
 【初版笔记】原附录把作弊自由度全归于 $\tilde a$，没有明确要求此前 OT 输入已经固定。
 
 【补丁写法】
-在 OT 输出已经固定的前提下，Sender 在随机内核发一条消息 $(\tilde a,\eta,\mu)$。
-以下只复盘该内核的一致性检查，指定输入偏移按上一节另行转换。
+在 OT 输出已经固定的前提下，Sender 在随机 VOLE 协议中发送一条消息 $(\tilde a,\eta,\mu)$。
+以下只复盘随机 VOLE 的一致性检查，指定输入偏移按上一节另行转换。
 其中 $\eta,\mu$ 是检查响应；决定逐行等效输入的是 $\tilde a$ 与此前的两侧 OT 输出。
 若 Sender 还能在挑战之后改变 OT 输入，仅固定 $\tilde a$ 就不足以固定这些等效输入。
 \end{patchnote}
@@ -483,7 +511,7 @@ t_{j,k} - \beta_j \cdot c_k = \alpha^0_{j,k}.
 \end{equation}
 若 Sender 实际用的是 $c_k + e$（$e \neq 0$），则 Receiver 的实算值 = 预测值 $+ \beta_j e$。
 此时 Sender 要想蒙混过关，就必须猜 $\beta_j$。
-这就是整个检查的骨架：诚实时两侧恒等且与 $\vec\beta$ 无关，
+这就是整个检查的骨架：诚实时两侧恒等且与 $\boldsymbol\beta$ 无关，
 作弊时差一个 $\beta_j$ 相关项，Sender 猜不中
 （类似于 KOS15 抓恶意 Receiver 的思路）。
 
@@ -524,10 +552,10 @@ $\theta$ 必须绑定修正矩阵及其对应的 OT 阶段，才能约束全部�
   反复重选 $\tilde a$，直到摇出的 $\theta$ 恰好使所有偏差组合为零。
   \item 【猜比特（selective failure）】
   这是一条绕过哈希安全性的路。
-  Sender 不再期待猜中整个 $\vec\beta$，只期待猜中某些 $\beta_j$。
+  Sender 不再期待猜中整个 $\boldsymbol\beta$，只期待猜中某些 $\beta_j$。
   每一位猜中的概率为 $1/2$，猜错即 abort。
   注意到 Receiver 的实际秘密为标量 $\beta=\sum_{j=0}^{L-1} \beta_j \cdot g_j$，
-  而参与 OT 的是更长的比特向量 $\vec\beta=(\beta_0,\ldots,\beta_{L-1})$；
+  而参与 OT 的是更长的比特向量 $\boldsymbol\beta=(\beta_0,\ldots,\beta_{L-1})$；
   若固定若干选择位才能通过，成功事件会改变剩余选择串的分布。
   提前公开 $\boldsymbol g$ 时，Sender 可据此挑选约束，普通独立源的 LHL 界便不足以直接套用。
   这正是 Variant III 增大 $L$，以及 Variant I、II 推迟 gadget 的原因。

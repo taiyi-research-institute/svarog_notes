@@ -389,16 +389,16 @@ $\mathcal O$ 表示椭圆曲线的无穷远点，$\bot$ 表示本次尝试失败
 
 【输入】参与方 $i$ 输入 Keyshare、签名者集合 $\mathbb{S}$、BIP-32 私钥偏移量 $\nabla x$，
 以及已经共同确定的消息哈希 $m$。
-各方在发送第一轮消息前固定同一个公开上下文 $C$，其编码包含
+各方在发送第一轮消息前固定同一个公开上下文摘要 $C$，其输入包含
 \begin{equation}\label{eq:orch:sign-context}
 \begin{aligned}
-C:=\mathrm{Enc}(&\texttt{"sign-2026"},\mathrm{sid},\mathrm{keyid},
+C:=\mathrm{RO}(&\texttt{"sign-2026"},\mathrm{sid},\mathrm{keyid},
                  \mathrm{sort}(\mathbb S),Y',m,\\
                &\mathrm{params},\mathrm{zeroMode},\mathrm{signMode}).
 \end{aligned}
 \end{equation}
 其中 $Y'=Y+\nabla xG$，参数记录包含子协议版本及维度，最后两个字段分别确定零分享方式与 low-S 输出规则。
-上下文采用无歧义编码；各子协议实例号绑定 $C$ 及有向双方身份。
+上下文各字段先无歧义编码，再哈希为 $C\in\{0,1\}^{2\lambda_c}$；各子协议实例号绑定 $C$ 及有向双方身份。
 各轮消息均绑定这个上下文，收发中发现不符时中止，不允许在原有状态上更换消息或密钥。
 
 【输出】每方 $i$ 获得预签名结构体，如公式 \eqref{eq:orch:presig}。
@@ -501,7 +501,7 @@ $\nabla x$ 是 BIP-32 偏移量，系数 $|\mathbb{S}|^{-1}$ 把偏移量均摊�
 式中 $\varepsilon_{R,i} \stackrel{\$}{\leftarrow} \left\{0,1\right\}^{256}$ 为盲化项。
 \begin{equation}
   \label{eq:orch:com-Ri}\tag{Com-Ri}
-  \mathrm{Com}_{R,i} := \mathrm{Hash}(\mathrm{Enc}(C,i,R_i,\varepsilon_{R,i})).
+  \mathrm{Com}_{R,i} := \mathrm{Hash} \circ \mathrm{RO}(C,i,R_i,\varepsilon_{R,i}).
 \end{equation}
 \end{patchnote}
 
@@ -528,9 +528,8 @@ SoftSpoken Receiver 消息的生成不依赖对端承诺，因此这两类消息
 其将在第二轮维护各方的一致性。式中 $Y' := Y+\nabla x \cdot G$ 为衍生公钥。
 \begin{equation}
   \label{eq:orch:com-hash}\tag{com-hash}
-  d := \mathrm{Hash}\left(
-    \mathrm{Enc}\bigl(C,(\mathrm{Com}_{R,j})_{j\in\mathrm{sort}(\mathbb S)}\bigr)
-  \right).
+  d := \mathrm{Hash}
+  \circ \mathrm{RO}\bigl(C,(\mathrm{Com}_{R,j})_{j\in\mathrm{sort}(\mathbb S)}\bigr).
 \end{equation}
 \end{patchnote}
 

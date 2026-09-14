@@ -71,13 +71,38 @@
 % 段距 1em: 0.6em 在 1.3 行距下与行距混成一片, 没有段落区分度
 \setlength{\parskip}{1em}
 
-% 补丁保留在相应笔记中，用黑体标记和上下横线界定范围，正文可以跨页。
+% 补丁使用可跨页的圆角虚线框，首段自动以 🛡️ 开头。
+\usepackage[most]{tcolorbox}
+\usepackage{twemojis}
 \newenvironment{patchnote}[1]{%
-  \par\noindent{\heitiLatin\heiti 【补丁】#1}\par\nopagebreak
-  \noindent\rule{\linewidth}{0.4pt}\par\nopagebreak
+  \begin{tcolorbox}[
+    enhanced jigsaw, breakable,
+    colback=white, frame hidden,
+    borderline={0.6pt}{0pt}{black!65,dashed},
+    arc=3mm, boxrule=0.6pt,
+    % 分页处用水平虚线闭合，直接连接左右边框，不加圆角。
+    overlay first={
+      \draw[black!65,dashed,line width=0.6pt]
+        ([xshift=0.3pt]frame.south west) -- ([xshift=-0.3pt]frame.south east);
+    },
+    overlay middle={
+      \draw[black!65,dashed,line width=0.6pt]
+        ([xshift=0.3pt]frame.north west) -- ([xshift=-0.3pt]frame.north east);
+      \draw[black!65,dashed,line width=0.6pt]
+        ([xshift=0.3pt]frame.south west) -- ([xshift=-0.3pt]frame.south east);
+    },
+    overlay last={
+      \draw[black!65,dashed,line width=0.6pt]
+        ([xshift=0.3pt]frame.north west) -- ([xshift=-0.3pt]frame.north east);
+    },
+    boxsep=1mm, left=2mm, right=2mm, top=2mm, bottom=2mm,
+    grow to left by=3.6mm, grow to right by=3.6mm,
+    before skip=1em, after skip=1em,
+    before upper={\setlength{\parindent}{0pt}\setlength{\parskip}{1em}}
+  ]
+  {\heitiLatin\heiti\texttwemoji{shield}\enspace #1}\par\nopagebreak
 }{%
-  \par\nopagebreak\noindent\rule{\linewidth}{0.4pt}\par\nopagebreak
-  \noindent{\heitiLatin\heiti 【补丁结束】}\par
+  \end{tcolorbox}
 }
 
 % --- 页眉: 无. article 默认 pagestyle=plain, 只有页脚中央页码 ---
