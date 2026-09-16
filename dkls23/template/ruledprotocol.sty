@@ -1,0 +1,140 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{ruledprotocol}[2026/09/16 Single-column ruled protocols]
+\RequirePackage{cryptocode}
+% Capture the final label command after hyperref/cleveref initialization.
+\AddToHook{begindocument/end}{\pcfixhyperref}
+\newlength{\protocolindent}
+\setlength{\protocolindent}{2em}
+\AtBeginDocument{%
+  \ifdefined\CJKfamily
+    \settowidth{\protocolindent}{\normalfont\normalsize 汉字}%
+  \fi
+}
+
+\renewcommand{\pclnseparator}{.}
+\definecolor{commentcolor}{HTML}{6B7280}
+\definecolor{rowlinecolor}{HTML}{D1D5DB}
+\definecolor{indentlinecolor}{HTML}{B8BEC7}
+\newcommand{\RowRule}{%
+  \noalign{%
+    \vskip 2pt\nointerlineskip
+    \hbox to 0pt{\ProtocolRuleAnchor\hss}%
+    {\color{rowlinecolor}\hrule height 0.2pt}\vskip 2pt}%
+}
+\renewcommand{\pccomment}[2][1em]{%
+  \hspace{#1}{\color{commentcolor}\mbox{/\!\!/ }\text{\scriptsize #2}}%
+}
+
+\ExplSyntaxOn
+\int_new:N \g__ruledprotocol_id_int
+\seq_new:N \g__ruledprotocol_scopes_seq
+\tl_new:N \l__ruledprotocol_scope_tl
+\tl_new:N \l__ruledprotocol_node_tl
+\tl_new:N \l__ruledprotocol_end_border_tl
+
+% Place the anchor on the horizontal rule's center, independent of row height.
+\cs_new_protected:Npn \ProtocolRuleAnchor
+  {
+    \tikz[remember~picture,overlay]
+      \coordinate
+        (rp-\int_use:N \g__ruledprotocol_id_int-\arabic{pclinenumber}-border)
+        at (0,-0.1pt);
+  }
+
+\cs_new_protected:Npn \__ruledprotocol_node_name:
+  {
+    \tl_set:Nx \l__ruledprotocol_node_tl
+      { rp-\int_use:N \g__ruledprotocol_id_int-\arabic{pclinenumber} }
+  }
+\cs_new_protected:Npn \__ruledprotocol_open:
+  {
+    \__ruledprotocol_node_name:
+    \tikz[remember~picture,overlay]
+      \coordinate (\l__ruledprotocol_node_tl) at (0,0);
+    \seq_gpush:NV \g__ruledprotocol_scopes_seq \l__ruledprotocol_node_tl
+  }
+\cs_new_protected:Npn \__ruledprotocol_segment:
+  {
+    \tl_set:Nx \l__ruledprotocol_end_border_tl
+      {
+        rp-\int_use:N \g__ruledprotocol_id_int-
+        \int_eval:n { \value{pclinenumber}-1 }-border
+      }
+    \tikz[remember~picture,overlay]{
+      \draw[indentlinecolor,line~width=0.25pt]
+        ([xshift=0.35em]\l__ruledprotocol_scope_tl|-\l__ruledprotocol_scope_tl-border)
+        -- ([xshift=0.35em]\l__ruledprotocol_scope_tl|-\l__ruledprotocol_end_border_tl);
+    }
+  }
+\cs_new_protected:Npn \__ruledprotocol_close:
+  {
+    \seq_if_empty:NF \g__ruledprotocol_scopes_seq
+      {
+        \seq_gpop:NN \g__ruledprotocol_scopes_seq \l__ruledprotocol_scope_tl
+        \__ruledprotocol_segment:
+      }
+  }
+% End one guide segment above else/elseif, then resume below the keyword.
+\cs_new_protected:Npn \__ruledprotocol_branch:
+  {
+    \seq_if_empty:NF \g__ruledprotocol_scopes_seq
+      {
+        \seq_gpop:NN \g__ruledprotocol_scopes_seq \l__ruledprotocol_scope_tl
+        \__ruledprotocol_segment:
+        \__ruledprotocol_node_name:
+        \tikz[remember~picture,overlay]{
+          \coordinate (rp-branch) at (0,0);
+          \coordinate (\l__ruledprotocol_node_tl)
+            at (\l__ruledprotocol_scope_tl|-rp-branch);
+        }
+        \seq_gpush:NV \g__ruledprotocol_scopes_seq \l__ruledprotocol_node_tl
+      }
+  }
+\cs_new_protected:Npn \__ruledprotocol_hooks:
+  {
+    \int_gincr:N \g__ruledprotocol_id_int
+    \seq_gclear:N \g__ruledprotocol_scopes_seq
+    \exp_args:Nc \pretocmd { @pc@increaseindent }
+      { \__ruledprotocol_open: } {} { \__ruledprotocol_patch_error: }
+    \exp_args:Nc \pretocmd { @pc@decreaseindent }
+      { \__ruledprotocol_close: } {} { \__ruledprotocol_patch_error: }
+    \exp_args:Nc \pretocmd { @pc@tmpdecreaseindent }
+      { \__ruledprotocol_branch: } {} { \__ruledprotocol_patch_error: }
+  }
+\cs_new_protected:Npn \__ruledprotocol_patch_error:
+  { \PackageError{ruledprotocol}{Cannot~install~indent~guides}{Check~the~cryptocode~version.} }
+
+\seq_new:N \l__ruledprotocol_rows_seq
+\tl_new:N \l__ruledprotocol_body_tl
+\tl_new:N \l__ruledprotocol_last_tl
+
+\cs_new_protected:Npn \__ruledprotocol_typeset:nnn #1#2#3
+  {
+    \par\noindent\hspace*{\protocolindent}
+    \procedure[linenumbering,space=auto,#1]{#2}{#3}
+    \par
+  }
+
+% Split only at outer-level row breaks; grouped formulas remain intact.
+% A final row break is optional and does not create an empty numbered row.
+\NewDocumentEnvironment{protocol}{O{} m +b}
+  {
+    \cs_if_exist:NT \mathindent { \setlength{\mathindent}{0pt} }
+    \__ruledprotocol_hooks:
+    \seq_set_split:Nnn \l__ruledprotocol_rows_seq { \\ } {#3}
+    \seq_get_right:NN \l__ruledprotocol_rows_seq \l__ruledprotocol_last_tl
+    \tl_if_blank:VT \l__ruledprotocol_last_tl
+      { \seq_pop_right:NN \l__ruledprotocol_rows_seq \l__ruledprotocol_last_tl }
+    \tl_clear:N \l__ruledprotocol_body_tl
+    \seq_map_indexed_inline:Nn \l__ruledprotocol_rows_seq
+      {
+        \int_compare:nNnT {##1} > {1}
+          { \tl_put_right:Nn \l__ruledprotocol_body_tl { \\[0pt][\RowRule] } }
+        \tl_put_right:Nn \l__ruledprotocol_body_tl {##2}
+      }
+    \tl_put_right:Nn \l__ruledprotocol_body_tl { \pclb \RowRule }
+    \exp_args:NnnV \__ruledprotocol_typeset:nnn
+      {#1}{#2} \l__ruledprotocol_body_tl
+  }
+  {}
+\ExplSyntaxOff

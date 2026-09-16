@@ -110,6 +110,26 @@ make pdf/06-rvole.pdf   # 只编一篇（也可：make 06-rvole）
   xr-hyper 已在 [main.tex](main.tex) 配好 `\externaldocument`，
   引用方无需额外声明。
 
+### 单栏协议块
+
+共享模板已加载 [ruledprotocol.sty](template/ruledprotocol.sty)。
+协议块左对齐，相对正文左边缘缩进两个汉字，宽度按正文中文字体实测。
+正文用普通的 `\\` 换行，每行自动带横灰线，行号后使用英文句点。
+`\pcfor`、`\pcif` 等起止命令自动生成缩进竖灰线，仍须写出对应的结束命令。
+
+```latex
+\begin{protocol}{Nonce points}
+  \pcfor i\in\mathbb S\pcdo \\
+    R_i\gets r_iG \pccomment{Local nonce point.} \\
+  \pcendfor\ (i) \\
+  R\gets\sum_{i\in\mathbb S}R_i
+\end{protocol}
+```
+
+注释沿用正文衬线字体，以灰色显示；公式中的直立名称使用 `\mathrm`。
+竖线依赖两次 XeLaTeX 编译，现有 `make` 已包含这两次编译。
+协议框本身不跨页；长协议按轮拆成作用域完整的多个框。
+
 ## 仓库结构
 
 ```

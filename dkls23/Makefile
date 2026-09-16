@@ -35,7 +35,7 @@ $(STEMS): %: pdf/%.pdf
 
 # 任意片段改动 → 全量重编
 # 在 _build/ 里编译 (aux/log 落在现场, 交叉引用从这读 aux), 产物 PDF mv 到 pdf/
-pdf/%.pdf: _build/%.tex $(FRAGMENTS)
+pdf/%.pdf: _build/%.tex $(FRAGMENTS) $(wildcard template/*.sty)
 	@mkdir -p pdf && cd _build && \
 	xelatex -interaction=nonstopmode -halt-on-error $*.tex >/dev/null 2>&1 \
 	  && mv $*.pdf ../pdf/ \
@@ -47,7 +47,7 @@ pdf/%.pdf: _build/%.tex $(FRAGMENTS)
 	echo "ok  $*: $$pages 页, $$labels 个标签"
 
 # 包装文件 = main.tex 改 \input 行 (指向片段) + 注入该片段的标题 (wrap.py 从 "% title:" 注释提取)
-_build/%.tex: main.tex template/wrap.py %.tex
+$(WRAPPERS): _build/%.tex: main.tex template/wrap.py %.tex
 	@mkdir -p _build
 	python3 template/wrap.py $* > $@
 

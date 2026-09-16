@@ -313,7 +313,7 @@ d_{j,i} \cdot G &\stackrel{?}{=}
 本方然后作为 Receiver 与其他各方继续执行 PPRF。
 对每棵 PPRF 树编号 $h\in[0, \kappa/k)$，
 输入对应的 $k$ 个 Base OT 选择位与单侧密钥
-$\bigl(\beta_{\ell,i,j},\rho^{\beta_{\ell,i,j}}_{\ell,i,j}\bigr)_{\ell\in[hk,(h+1)k)}$，
+$\bigl((\beta_{\ell,i,j},\rho^{\beta_{\ell,i,j}}_{\ell,i,j}) \mid \ell\in[hk,(h+1)k)\bigr)$，
 以及收到的修正向量 $t^0_{h,j,i},t^1_{h,j,i}$ 和证明材料 $\tilde t_{h,j,i},\tilde s_{h,j,i}$。
 输出打孔位置 $y_{h,i,j}$ 与打孔叶子 $\mathcal{A}^*_{h,i,j}$。
 
@@ -529,7 +529,7 @@ SoftSpoken Receiver 消息的生成不依赖对端承诺，因此这两类消息
 \begin{equation}
   \label{eq:orch:com-hash}\tag{com-hash}
   d := \mathrm{Hash}
-  \circ \mathrm{RO}\bigl(C,(\mathrm{Com}_{R,j})_{j\in\mathrm{sort}(\mathbb S)}\bigr).
+  \circ \mathrm{RO}\bigl(C,(\mathrm{Com}_{R,j} \mid j\in\mathrm{sort}(\mathbb S))\bigr).
 \end{equation}
 \end{patchnote}
 
@@ -601,7 +601,7 @@ $\Gamma^\mathtt{x}_{i,j} := y^\mathtt{x}_{i,j} \cdot G$。
 【补丁写法】
 【检查-P】本方作为 Receiver，与其他方调用子协议 RVOLE。
 输入本方的选择串 $\boldsymbol{\beta}_{j,i}$、单侧 OT 密钥
-$\bigl(\rho^{\beta_{\ell,j,i}}_{\ell,j,i}\bigr)_{\ell\in[0,L)}$，
+$\bigl(\rho^{\beta_{\ell,j,i}}_{\ell,j,i} \mid \ell\in[0,L)\bigr)$，
 以及 $j$ 发来的 $\tilde a_{j,i},\eta_{j,i},\mu_{j,i},\boldsymbol\delta_{j,i}$。
 子协议须先通过 $\mu_{j,i}$ 的校验，再按输入偏移修正 Receiver 输出，
 才得到实际输入对应的 MtA 加法分片 $z^\mathtt{r}_{j,i},z^\mathtt{x}_{j,i}$。

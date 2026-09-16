@@ -12,12 +12,18 @@
 %  (产物在 pdf/)
 % ============================================================
 % article 类只支持 10/11/12pt, 14pt 要换 extarticle (article 的同款克隆, TeX Live 自带)
-\documentclass[14pt]{extarticle}
+\documentclass[14pt,fleqn]{extarticle}
 % 四边均匀砍掉 1/3: 2.6cm → 1.73cm
 \usepackage[top=1.73cm,left=1.73cm,right=1.73cm,bottom=1.73cm]{geometry}
 % 数学正文使用 Latin Modern Math；黑板粗体使用经典的有衬线 AMS 字形。
 % unicode-math 必须最后加载 (amsmath/amssymb 之后)。
 \usepackage{amsmath,amssymb,mathtools}
+% 单栏协议：自动横线、缩进辅助线与显式作用域。
+\makeatletter
+\providecommand\input@path{}
+\g@addto@macro\input@path{{../template/}{template/}}
+\makeatother
+\usepackage{ruledprotocol}
 \usepackage{unicode-math}
 \setmathfont{latinmodern-math.otf}
 % 粗体数学版本 (\boldsymbol / \mathversion{bold} 依赖): Latin Modern Math 无原生粗体,
@@ -55,6 +61,9 @@
 % 标题里的西文 (MtA/DKLS23 等) 跟中文一起用黑体: \heiti 只接管 CJK 字符,
 % 西文要另切 fontspec 族 (同样的 NotoSansSC)
 \newfontfamily\heitiLatin{NotoSansSC-Medium.ttf}[BoldFont=NotoSansSC-Bold.ttf]
+
+% 行间公式左对齐，按正文中文字体实测两个汉字的宽度作为缩进。
+\AtBeginDocument{\settowidth{\mathindent}{汉字}}
 
 % --- 章节标题黑体 (中英一致无衬线), 论文观感 ---
 % 标题字体本身已是 SemiBold, 不加 \bfseries (无衬线再粗就笨重)
