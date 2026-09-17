@@ -1,28 +1,75 @@
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesPackage{ruledprotocol}[2026/09/16 Single-column ruled protocols]
 \RequirePackage{cryptocode}
+\RequirePackage[most]{tcolorbox}
 % Capture the final label command after hyperref/cleveref initialization.
 \AddToHook{begindocument/end}{\pcfixhyperref}
-\newlength{\protocolindent}
-\setlength{\protocolindent}{2em}
-\AtBeginDocument{%
-  \ifdefined\CJKfamily
-    \settowidth{\protocolindent}{\normalfont\normalsize 汉字}%
-  \fi
-}
-
-\renewcommand{\pclnseparator}{.}
+\renewcommand{\pclnseparator}{}
+\renewcommand{\pclnstyle}[1]{%
+  \text{\makebox[2em][r]{\normalfont\ttfamily\footnotesize #1.}}}
+\makeatletter
+\patchcmd{\pcln}
+  {\ifthenelse{\value{pclinenumber}<10}{\hspace{1ex}}{}}{}
+  {}{\PackageError{ruledprotocol}{Cannot align line numbers}{Check the cryptocode version.}}
+\makeatother
+% Space between the protocol heading and its underline.
+\setlength{\pcheadlinesep}{1pt}
+% Balance the title rule between the heading and the first protocol row.
+\setlength{\pcbodylinesep}{2pt}
 \definecolor{commentcolor}{HTML}{6B7280}
 \definecolor{rowlinecolor}{HTML}{D1D5DB}
 \definecolor{indentlinecolor}{HTML}{B8BEC7}
 \newcommand{\RowRule}{%
   \noalign{%
-    \vskip 2pt\nointerlineskip
+    \vskip 1pt\nointerlineskip
     \hbox to 0pt{\ProtocolRuleAnchor\hss}%
-    {\color{rowlinecolor}\hrule height 0.2pt}\vskip 2pt}%
+    {\color{rowlinecolor}\hrule height 0.2pt}\vskip 1pt}%
+}
+\newcommand{\LastRowRule}{%
+  \noalign{%
+    \vskip 1pt\nointerlineskip
+    \hbox to 0pt{\ProtocolRuleAnchor\hss}%
+    \hrule\vskip 1pt}%
 }
 \renewcommand{\pccomment}[2][1em]{%
-  \hspace{#1}{\color{commentcolor}\mbox{/\!\!/ }\text{\scriptsize #2}}%
+  \hspace{#1}{\color{commentcolor}\text{\normalfont\normalsize // #2}}%
+}
+% Store the executor for the current row; render it in the right-hand column.
+\newcommand{\ProtocolPartyValue}{}
+\newcommand{\pcparty}[1]{%
+  \gdef\ProtocolPartyValue{#1}%
+}
+\newcommand{\ProtocolPartyColumn}{%
+  \text{\makebox[3em][r]{\normalfont\sffamily\bfseries\ProtocolPartyValue}}%
+  \gdef\ProtocolPartyValue{}%
+}
+\newcommand{\pcreturns}{\highlightkeyword{returns}}
+\newcommand{\ProtocolTagValue}{}
+\newcommand{\ProtocolLabelValue}{}
+\makeatletter
+\newcommand{\ProtocolWriteTagLabel}[2]{%
+  \begingroup\def\@currentlabel{#2}\label{#1}\endgroup}
+\makeatother
+\newenvironment{ProtocolBreakBox}{%
+  \begin{tcolorbox}[
+    enhanced jigsaw, breakable,
+    frame hidden, interior hidden,
+    sharp corners, boxrule=0pt, boxsep=0pt,
+    left=0pt, right=0pt, top=0pt, bottom=0pt,
+    width=\linewidth,
+    before skip=\pcaboveskip, after skip=\pcbelowskip,
+    pad at break*=0pt,
+    overlay middle={
+      \draw[rowlinecolor,dashed,line width=0.3pt]
+        (frame.north west) -- (frame.north east);
+    },
+    overlay last={
+      \draw[rowlinecolor,dashed,line width=0.3pt]
+        (frame.north west) -- (frame.north east);
+    },
+  ]
+}{%
+  \end{tcolorbox}%
 }
 
 \ExplSyntaxOn
@@ -105,23 +152,60 @@
   { \PackageError{ruledprotocol}{Cannot~install~indent~guides}{Check~the~cryptocode~version.} }
 
 \seq_new:N \l__ruledprotocol_rows_seq
+\seq_new:N \l__ruledprotocol_headers_seq
+\tl_new:N \l__ruledprotocol_source_tl
 \tl_new:N \l__ruledprotocol_body_tl
+\cs_new_protected:Npn \__ruledprotocol_equation_label:n #1
+  {
+    \legacy_if:nF { measuring@ }
+      { \use:c { label@in@display } {#1} }
+  }
 \tl_new:N \l__ruledprotocol_last_tl
+\tl_new:N \l__ruledprotocol_first_tl
+\bool_new:N \l__ruledprotocol_parties_bool
+\box_new:N \l__ruledprotocol_first_box
+\dim_new:N \l__ruledprotocol_top_extra_dim
+
+% Measure a tall first row without labels, comments, or indentation side effects.
+\cs_new_protected:Npn \__ruledprotocol_measure_first:n #1
+  {
+    \group_begin:
+    \cs_set_eq:NN \pcparty \use_none:n
+    \RenewDocumentCommand \pccomment { O{1em} m } { }
+    \cs_set_eq:NN \label \use_none:n
+    \RenewDocumentCommand \tag { s m } { }
+    \cs_set_eq:cN { @pc@increaseindent } \prg_do_nothing:
+    \cs_set_eq:cN { @pc@decreaseindent } \prg_do_nothing:
+    \cs_set_eq:cN { @pc@tmpdecreaseindent } \prg_do_nothing:
+    \hbox_set:Nn \l__ruledprotocol_first_box { $\displaystyle #1$ }
+    \dim_gset:Nn \l__ruledprotocol_top_extra_dim
+      { \dim_max:nn {0pt} { \box_ht:N \l__ruledprotocol_first_box - \baselineskip + 2pt } }
+    \group_end:
+  }
 
 \cs_new_protected:Npn \__ruledprotocol_typeset:nnn #1#2#3
   {
-    \par\noindent\hspace*{\protocolindent}
-    \procedure[linenumbering,space=auto,#1]{#2}{#3}
+    \par\noindent
+    \addtolength{\pcbodylinesep}{\l__ruledprotocol_top_extra_dim}
+    \procedure[linenumbering,space=auto,width=\linewidth,codesize=\normalsize,subcodesize=\normalsize,#1]{#2}{#3}
     \par
   }
 
 % Split only at outer-level row breaks; grouped formulas remain intact.
 % A final row break is optional and does not create an empty numbered row.
-\NewDocumentEnvironment{protocol}{O{} m +b}
+\NewDocumentEnvironment{staticprotocol}{O{} m +b}
   {
     \cs_if_exist:NT \mathindent { \setlength{\mathindent}{0pt} }
     \__ruledprotocol_hooks:
-    \seq_set_split:Nnn \l__ruledprotocol_rows_seq { \\ } {#3}
+    \tl_set:Nn \l__ruledprotocol_source_tl {#3}
+    \regex_replace_all:nnN { \c{par} } { } \l__ruledprotocol_source_tl
+    \seq_set_split:NnV \l__ruledprotocol_rows_seq { \\ } \l__ruledprotocol_source_tl
+    \bool_set_false:N \l__ruledprotocol_parties_bool
+    \tl_if_in:VnT \l__ruledprotocol_source_tl { \pcparty }
+      { \bool_set_true:N \l__ruledprotocol_parties_bool }
+    \gdef\ProtocolPartyValue{}
+    \seq_get_left:NN \l__ruledprotocol_rows_seq \l__ruledprotocol_first_tl
+    \exp_args:NV \__ruledprotocol_measure_first:n \l__ruledprotocol_first_tl
     \seq_get_right:NN \l__ruledprotocol_rows_seq \l__ruledprotocol_last_tl
     \tl_if_blank:VT \l__ruledprotocol_last_tl
       { \seq_pop_right:NN \l__ruledprotocol_rows_seq \l__ruledprotocol_last_tl }
@@ -129,12 +213,147 @@
     \seq_map_indexed_inline:Nn \l__ruledprotocol_rows_seq
       {
         \int_compare:nNnT {##1} > {1}
-          { \tl_put_right:Nn \l__ruledprotocol_body_tl { \\[0pt][\RowRule] } }
+          { \tl_put_right:Nn \l__ruledprotocol_body_tl { \\[][\RowRule] } }
+        \tl_if_in:nnT {##2} { \tag }
+          {
+            \tl_put_right:Nn \l__ruledprotocol_body_tl
+              { \cs_set_eq:NN \label \__ruledprotocol_equation_label:n }
+          }
         \tl_put_right:Nn \l__ruledprotocol_body_tl {##2}
+        \bool_if:NT \l__ruledprotocol_parties_bool
+          { \tl_put_right:Nn \l__ruledprotocol_body_tl { \> \ProtocolPartyColumn } }
       }
-    \tl_put_right:Nn \l__ruledprotocol_body_tl { \pclb \RowRule }
+    \tl_put_right:Nn \l__ruledprotocol_body_tl { \pclb \LastRowRule }
     \exp_args:NnnV \__ruledprotocol_typeset:nnn
       {#1}{#2} \l__ruledprotocol_body_tl
   }
+  {}
+
+% 可分页的长协议版本。cryptocode 用 minipage 和 flalign* 包住整段伪代码，
+% 因而原生 procedure 不能分页。此处将每一行分别放进竖直列表，
+% 让 TeX 只能在两个完整行之间分页。
+\box_new:N \l__ruledprotocol_breakable_row_box
+\int_new:N \l__ruledprotocol_breakable_indent_int
+\int_new:N \l__ruledprotocol_breakable_guides_int
+\bool_new:N \l__ruledprotocol_breakable_closing_bool
+
+\cs_new_protected:Npn \__ruledprotocol_breakable_guides:
+  {
+    \int_step_inline:nn { \l__ruledprotocol_breakable_guides_int }
+      {
+        \smash{\hbox_overlap_right:n
+          {
+            \kern \dim_eval:n { ##1 em - 0.65em }
+            {\color{indentlinecolor}
+              \vrule width 0.25pt
+                height \dim_eval:n { \box_ht:N \l__ruledprotocol_breakable_row_box + 1.2pt }
+                depth  \dim_eval:n { \box_dp:N \l__ruledprotocol_breakable_row_box + 1.2pt }}
+          }}
+      }
+  }
+
+\cs_new_protected:Npn \__ruledprotocol_breakable_row:nn #1#2
+  {
+    \int_set:Nn \l__ruledprotocol_breakable_indent_int
+      { \value{@pc@indentationlevel} }
+    \bool_set_false:N \l__ruledprotocol_breakable_closing_bool
+    \clist_map_inline:nn
+      { \pcendfor, \pcendforeach, \pcfi, \pcendif, \pcendwhile, \pcuntil }
+      {
+        \tl_if_in:nnT {#1} {##1}
+          { \bool_set_true:N \l__ruledprotocol_breakable_closing_bool }
+      }
+    \int_set_eq:NN \l__ruledprotocol_breakable_guides_int
+      \l__ruledprotocol_breakable_indent_int
+    \bool_if:NT \l__ruledprotocol_breakable_closing_bool
+      { \int_decr:N \l__ruledprotocol_breakable_guides_int }
+    \int_compare:nNnT { \l__ruledprotocol_breakable_guides_int } < {0}
+      { \int_zero:N \l__ruledprotocol_breakable_guides_int }
+    \gdef\ProtocolPartyValue{}
+    \gdef\ProtocolTagValue{}
+    \gdef\ProtocolLabelValue{}
+    \hbox_set:Nn \l__ruledprotocol_breakable_row_box
+      {
+        \RenewDocumentCommand \tag { s m } { \gdef\ProtocolTagValue{##2} }
+        \cs_set_protected:Npn \label ##1 { \gdef\ProtocolLabelValue{##1} }
+        \strut
+        $\displaystyle
+          \pcind[\int_use:N \l__ruledprotocol_breakable_indent_int]
+          #1
+        $
+      }
+    \tl_if_empty:NF \ProtocolLabelValue
+      { \ProtocolWriteTagLabel{\ProtocolLabelValue}{\ProtocolTagValue} }
+    \nointerlineskip
+    \vbox
+      {
+        \vskip 1pt
+        \hbox to \linewidth
+          {
+            $\pcln$
+            \__ruledprotocol_breakable_guides:
+            \box_use:N \l__ruledprotocol_breakable_row_box
+            \hfil
+            \bool_if:NT \l__ruledprotocol_parties_bool
+              { $\ProtocolPartyColumn$ }
+            \tl_if_empty:NF \ProtocolTagValue
+              { \textnormal{(\ProtocolTagValue)} }
+          }
+        \vskip 1pt
+        \bool_if:nTF {#2}
+          { \hrule }
+          { {\color{rowlinecolor}\hrule height 0.2pt} }
+      }
+  }
+
+\NewDocumentEnvironment{protocol}{O{} m +b}
+  {
+    \begin{ProtocolBreakBox}
+    \group_begin:
+    \cs_set:cpn { @pseudocodespace } { auto }
+    \setcounter{@pc@indentationlevel}{0}
+    \setcounter{pclinenumber}{0}
+    \tl_set:Nn \l__ruledprotocol_source_tl {#3}
+    \regex_replace_all:nnN { \c{par} } { } \l__ruledprotocol_source_tl
+    \seq_set_split:NnV \l__ruledprotocol_rows_seq { \\ } \l__ruledprotocol_source_tl
+    \seq_get_right:NN \l__ruledprotocol_rows_seq \l__ruledprotocol_last_tl
+    \tl_if_blank:VT \l__ruledprotocol_last_tl
+      { \seq_pop_right:NN \l__ruledprotocol_rows_seq \l__ruledprotocol_last_tl }
+    \bool_set_false:N \l__ruledprotocol_parties_bool
+    \tl_if_in:VnT \l__ruledprotocol_source_tl { \pcparty }
+      { \bool_set_true:N \l__ruledprotocol_parties_bool }
+    \seq_get_left:NN \l__ruledprotocol_rows_seq \l__ruledprotocol_first_tl
+    \seq_set_split:Nnn \l__ruledprotocol_headers_seq { \\ } {#2}
+    \vbox
+      {
+        \seq_map_indexed_inline:Nn \l__ruledprotocol_headers_seq
+          {
+            \hbox to \linewidth { \strut ##2\hfil }
+            \vskip \pcheadlinesep
+            \int_compare:nNnTF {##1} = {\seq_count:N \l__ruledprotocol_headers_seq}
+              { \hrule }
+              { {\color{rowlinecolor}\hrule height 0.2pt} }
+            \vskip \pcbodylinesep
+          }
+        \exp_args:NV \__ruledprotocol_breakable_row:nn
+          \l__ruledprotocol_first_tl
+          { \int_compare_p:nNn {\seq_count:N \l__ruledprotocol_rows_seq} = {1} }
+      }
+    \seq_map_indexed_inline:Nn \l__ruledprotocol_rows_seq
+      {
+        \int_compare:nNnT {##1} > {1}
+          {
+            \penalty 0
+            \__ruledprotocol_breakable_row:nn
+              {##2}
+              { \int_compare_p:nNn {##1} = {\seq_count:N \l__ruledprotocol_rows_seq} }
+          }
+      }
+    \group_end:
+    \end{ProtocolBreakBox}
+  }
+  {}
+\NewDocumentEnvironment{breakableprotocol}{O{} m +b}
+  { \begin{protocol}[#1]{#2}#3\end{protocol} }
   {}
 \ExplSyntaxOff

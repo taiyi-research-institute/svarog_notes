@@ -2,20 +2,20 @@
 #  DKLS23 笔记编译 (Makefile)
 #
 #  用法 (在仓库根目录):
-#    make                 # 全量编译 15 篇
+#    make                 # 全量编译 14 篇
 #    make pdf/06-rvole.pdf    # 只编译一篇 (也可写 make 06-rvole)
 #    make clean           # 删掉 pdf/ 和 _build/ (编译现场)
 #
 #  产物: pdf/<stem>.pdf (PDF 只进 pdf/; 编译现场在 _build/: 包装文件+aux/log)
 #
-#  增量语义: 每篇 pdf 依赖全部 15 个片段 —— 任意片段改动都会触发全量重编。
+#  增量语义: 每篇 pdf 依赖全部 14 个片段 —— 任意片段改动都会触发全量重编。
 #  这是故意的: 任何一篇的编号都可能被别的篇引用, 全量重编保证交叉引用新鲜。
 #  单篇编译只重建那一篇, 引用其它笔记时用的是 _build/ 里现有 aux (可能旧)。
 # ============================================================
 
 STEMS = 00-mta-baseot 01-iknp03 02-kos15 03-endemic-ot 04-pprf \
         05-softspoken 06-rvole 07-orchestration dkls23 \
-        misc-f2k misc-fiat-shamir misc-gadget misc-rerand temp \
+        misc-f2k misc-fiat-shamir misc-gadget misc-rerand \
         uc-framework
 
 FRAGMENTS = $(addsuffix .tex,$(STEMS))      # 根目录的笔记片段
