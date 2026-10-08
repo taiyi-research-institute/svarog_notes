@@ -12,7 +12,7 @@
   {\ifthenelse{\value{pclinenumber}<10}{\hspace{1ex}}{}}{}
   {}{\PackageError{ruledprotocol}{Cannot align line numbers}{Check the cryptocode version.}}
 \makeatother
-% Space between the protocol heading and its underline.
+% Space between each heading row and its adjacent rule.
 \setlength{\pcheadlinesep}{1pt}
 % Balance the title rule between the heading and the first protocol row.
 \setlength{\pcbodylinesep}{2pt}
@@ -39,11 +39,13 @@
 \newcommand{\pcparty}[1]{%
   \gdef\ProtocolPartyValue{#1}%
 }
+\newcommand{\party}[1]{\ensuremath{\mathcal{#1}}}
 \newcommand{\ProtocolPartyColumn}{%
-  \text{\makebox[3em][r]{\normalfont\sffamily\bfseries\ProtocolPartyValue}}%
+  \text{\makebox[3em][r]{\(\mathcal{\ProtocolPartyValue}\)}}%
   \gdef\ProtocolPartyValue{}%
 }
 \newcommand{\pcreturns}{\highlightkeyword{returns}}
+\newcommand{\pcsend}[2]{\highlightkeyword{send}#1\;\highlightkeyword{to}#2}
 \newcommand{\ProtocolTagValue}{}
 \newcommand{\ProtocolLabelValue}{}
 \makeatletter
@@ -57,7 +59,7 @@
     sharp corners, boxrule=0pt, boxsep=0pt,
     left=0pt, right=0pt, top=0pt, bottom=0pt,
     width=\linewidth,
-    before skip=\pcaboveskip, after skip=\pcbelowskip,
+    before skip=1.50\parskip, after skip balanced=1.50\parskip,
     pad at break*=0pt,
     overlay middle={
       \draw[rowlinecolor,dashed,line width=0.3pt]
@@ -300,19 +302,80 @@
               { \textnormal{(\ProtocolTagValue)} }
           }
         \vskip 1pt
-        \bool_if:nTF {#2}
+        \bool_if:nTF {#2 && \tl_if_empty_p:N \l__ruledprotocol_note_tl}
           { \hrule }
           { {\color{rowlinecolor}\hrule height 0.2pt} }
       }
   }
 
-\NewDocumentEnvironment{protocol}{O{} m +b}
+\tl_new:N \l__ruledprotocol_name_tl
+\tl_new:N \l__ruledprotocol_params_tl
+\tl_new:N \l__ruledprotocol_returns_tl
+\tl_new:N \l__ruledprotocol_constraints_tl
+\tl_new:N \l__ruledprotocol_note_tl
+\tl_new:N \l__ruledprotocol_layout_tl
+% A trailing body note is captured while the final row is measured.
+\NewDocumentCommand{\pcnote}{m}
+  { \tl_gset:Nn \l__ruledprotocol_note_tl {#1} }
+\box_new:N \l__ruledprotocol_header_box
+\keys_define:nn { ruledprotocol }
+  {
+    name .tl_set:N = \l__ruledprotocol_name_tl,
+    params .tl_set:N = \l__ruledprotocol_params_tl,
+    returns .tl_set:N = \l__ruledprotocol_returns_tl,
+    constraints .tl_set:N = \l__ruledprotocol_constraints_tl,
+    note .tl_set:N = \l__ruledprotocol_note_tl,
+    st .meta:n = { constraints = {#1} },
+    suchthat .meta:n = { constraints = {#1} },
+    layout .choice:,
+    layout / auto .code:n = { \tl_set:Nn \l__ruledprotocol_layout_tl {auto} },
+    layout / inline .code:n = { \tl_set:Nn \l__ruledprotocol_layout_tl {inline} },
+    layout / multiline .code:n = { \tl_set:Nn \l__ruledprotocol_layout_tl {multiline} },
+  }
+\cs_new_protected:Npn \__ruledprotocol_named_title:
+  {
+    $\displaystyle\mathbf{\l__ruledprotocol_name_tl}
+      \tl_if_empty:NF \l__ruledprotocol_params_tl
+        {\,\left(\l__ruledprotocol_params_tl\right)}$
+  }
+\cs_new_protected:Npn \__ruledprotocol_named_returns:
+  { $\displaystyle\pcreturns\l__ruledprotocol_returns_tl$ }
+\cs_new_protected:Npn \__ruledprotocol_named_headers:n #1
+  {
+    \keys_set:nn {ruledprotocol}
+      {name={},params={},returns={},constraints={},layout=auto,#1}
+    \seq_clear:N \l__ruledprotocol_headers_seq
+    \tl_if_empty:NTF \l__ruledprotocol_returns_tl
+      { \seq_put_right:Nn \l__ruledprotocol_headers_seq {\__ruledprotocol_named_title:} }
+      {
+        \hbox_set:Nn \l__ruledprotocol_header_box
+          {\__ruledprotocol_named_title:\quad\__ruledprotocol_named_returns:}
+        \bool_if:nTF
+          {
+            \str_if_eq_p:Vn \l__ruledprotocol_layout_tl {multiline}
+            || (\str_if_eq_p:Vn \l__ruledprotocol_layout_tl {auto}
+                && \dim_compare_p:nNn {\box_wd:N \l__ruledprotocol_header_box} > {\linewidth})
+          }
+          {
+            \seq_put_right:Nn \l__ruledprotocol_headers_seq {\__ruledprotocol_named_title:}
+            \seq_put_right:Nn \l__ruledprotocol_headers_seq {\__ruledprotocol_named_returns:}
+          }
+          { \seq_put_right:Nn \l__ruledprotocol_headers_seq
+              {\__ruledprotocol_named_title:\quad\__ruledprotocol_named_returns:} }
+      }
+    \tl_if_empty:NF \l__ruledprotocol_constraints_tl
+      { \seq_put_right:Nn \l__ruledprotocol_headers_seq
+          {$\displaystyle\text{s.t.}\quad\l__ruledprotocol_constraints_tl$} }
+  }
+
+\NewDocumentEnvironment{protocol}{O{} g +b}
   {
     \begin{ProtocolBreakBox}
     \group_begin:
     \cs_set:cpn { @pseudocodespace } { auto }
     \setcounter{@pc@indentationlevel}{0}
     \setcounter{pclinenumber}{0}
+    \keys_set:nn {ruledprotocol} {note={},#1}
     \tl_set:Nn \l__ruledprotocol_source_tl {#3}
     \regex_replace_all:nnN { \c{par} } { } \l__ruledprotocol_source_tl
     \seq_set_split:NnV \l__ruledprotocol_rows_seq { \\ } \l__ruledprotocol_source_tl
@@ -322,10 +385,15 @@
     \bool_set_false:N \l__ruledprotocol_parties_bool
     \tl_if_in:VnT \l__ruledprotocol_source_tl { \pcparty }
       { \bool_set_true:N \l__ruledprotocol_parties_bool }
-    \seq_get_left:NN \l__ruledprotocol_rows_seq \l__ruledprotocol_first_tl
-    \seq_set_split:Nnn \l__ruledprotocol_headers_seq { \\ } {#2}
+    \seq_if_empty:NF \l__ruledprotocol_rows_seq
+      { \seq_get_left:NN \l__ruledprotocol_rows_seq \l__ruledprotocol_first_tl }
+    \IfNoValueTF{#2}
+      { \__ruledprotocol_named_headers:n {#1} }
+      { \seq_set_split:Nnn \l__ruledprotocol_headers_seq { \\ } {#2} }
     \vbox
       {
+        \seq_if_empty:NF \l__ruledprotocol_headers_seq
+          { \hrule \vskip \pcheadlinesep }
         \seq_map_indexed_inline:Nn \l__ruledprotocol_headers_seq
           {
             \hbox to \linewidth { \strut ##2\hfil }
@@ -335,9 +403,12 @@
               { {\color{rowlinecolor}\hrule height 0.2pt} }
             \vskip \pcbodylinesep
           }
-        \exp_args:NV \__ruledprotocol_breakable_row:nn
-          \l__ruledprotocol_first_tl
-          { \int_compare_p:nNn {\seq_count:N \l__ruledprotocol_rows_seq} = {1} }
+        \seq_if_empty:NF \l__ruledprotocol_rows_seq
+          {
+            \exp_args:NV \__ruledprotocol_breakable_row:nn
+              \l__ruledprotocol_first_tl
+              { \int_compare_p:nNn {\seq_count:N \l__ruledprotocol_rows_seq} = {1} }
+          }
       }
     \seq_map_indexed_inline:Nn \l__ruledprotocol_rows_seq
       {
@@ -349,11 +420,29 @@
               { \int_compare_p:nNn {##1} = {\seq_count:N \l__ruledprotocol_rows_seq} }
           }
       }
+    \tl_if_empty:NF \l__ruledprotocol_note_tl
+      {
+        \nobreak\nointerlineskip
+        \vbox
+          {
+            \hsize=\linewidth
+            \parskip=0pt
+            \vskip 1pt
+            \begingroup
+              \small\CJKfontspec{FandolKai-Regular.otf}
+              \noindent\strut\l__ruledprotocol_note_tl\par
+            \endgroup
+            \vskip 1pt
+            \hrule
+          }
+      }
     \group_end:
     \end{ProtocolBreakBox}
   }
   {}
-\NewDocumentEnvironment{breakableprotocol}{O{} m +b}
-  { \begin{protocol}[#1]{#2}#3\end{protocol} }
+\NewDocumentEnvironment{breakableprotocol}{O{} g +b}
+  { \IfNoValueTF{#2}
+      {\begin{protocol}[#1]#3\end{protocol}}
+      {\begin{protocol}[#1]{#2}#3\end{protocol}} }
   {}
 \ExplSyntaxOff

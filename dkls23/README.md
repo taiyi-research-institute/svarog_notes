@@ -114,13 +114,20 @@ make pdf/06-rvole.pdf   # 只编一篇（也可：make 06-rvole）
 
 共享模板已加载 [ruledprotocol.sty](template/ruledprotocol.sty)。
 `protocol` 基于修改后的 `cryptocode`，每行处于数学模式，用 `\\` 分隔。
-标题横线与每行的横灰线占满正文行宽；行号及其英文句点使用较小的等宽字体，整体右对齐。
-标题与标题横线之间留 `1pt`，标题横线与第一行之间留 `2pt`，
+标题上方与表头下方都有占满正文行宽的黑实线；代码行之间使用横灰线。
+行号及其英文句点使用较小的等宽字体，整体右对齐。
+表头首行与上边沿、末行与下边沿之间各留 `1pt`，
+表头下方横线与第一行之间留 `2pt`，
 内容横线上下各留 `1pt`。
 最后一行的下边沿使用与标题下方相同的黑实线。
 
 ```latex
-\begin{protocol}{Nonce points}
+\begin{protocol}[
+  name=NoncePoints,
+  params={S},
+  returns={R_i},
+  layout=auto
+]
   \pcfor i\in S\pcdo \\
     R_i\gets r_iG \pccomment{本地 nonce 点} \\
   \pcendfor \\
@@ -133,10 +140,25 @@ make pdf/06-rvole.pdf   # 只编一篇（也可：make 06-rvole）
 每行公式无需 `$…$` 或 `equation`，返回值使用 `\pcreturn{…}`。
 用 `\pcparty{S}` 标明执行方，标记显示在右侧独立小列，例如
 `\pcparty{R}y_b\coloneq\sum_t m_{t,d_t}`；共同执行写作 `\pcparty{S,R}`。
+发送消息使用 `\pcsend{消息}{接收方}`，例如
+`\pcparty{S}\pcsend{A}{R}`，显示为「send A to R」。
 控制块开头的执行方标签适用于整个块，最终输出归属仍由 `\pcreturn` 标明。
 只有使用了 `\pcparty` 的协议才会预留执行方列，列宽在 `\ProtocolPartyColumn` 中调整。
 第一行包含求和等高公式时，标题横线下方的留白会按公式高度自动增加。
 
+协议与前后正文的间距为段间距 `\parskip` 的 `1.50` 倍。
+`name` 使用粗体直立数学字体，`params` 自动进入数学模式并添加伸缩圆括号，
+`returns` 自动进入数学模式并添加 `returns` 关键字；三个参数都无需手写 `$`。
+省略 `params` 或 `returns` 时，相应部分不显示。
+`layout=auto` 在表头过宽时把返回值另起一行；`inline` 强制同行，
+`multiline` 强制返回值另起一行。`constraints={…}` 可添加独立的约束行，
+环境自动添加 `s.t.`。原有的手写表头参数仍可使用。
+在最后一行代码后、`\end{protocol}` 前写 `\pcnote{…}`，
+即可添加不编号的楷体尾注，字号比正文小一级；
+它与最后一行代码之间用细灰线分隔，
+下方保留黑实线，且两者不会跨页分开。尾注前不要加 `\\`。
+原有的 `note={…}` 表头选项仍可使用。
+`st={…}`、`suchthat={…}` 都是 `constraints={…}` 的同义写法。
 `protocol` 默认允许跨页。表头参数内部用 `\\` 分行，表头内部使用细灰线
 分隔，最后一行表头下方使用黑实线；短协议可以把名称、输入和 `\pcreturns` 写在同一行。
 正文中的第一行代码仍从行号 1 开始。每一行代码单独排版，TeX 可以在

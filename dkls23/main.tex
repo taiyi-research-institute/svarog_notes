@@ -29,6 +29,16 @@
 % 粗体数学版本（\boldsymbol / \mathversion{bold} 依赖）使用配套的 NewCM Math Bold。
 \setmathfont[version=bold]{NewCMMath-Bold.otf}
 \usepackage[bb=ams]{mathalpha}
+\newcommand{\bit}{\ensuremath{\left\{0,1\right\}}}
+\newcommand{\bits}[1]{\ensuremath{\bit^{#1}}}
+\newcommand{\true}{\ensuremath{\mathrm{True}}}
+\newcommand{\false}{\ensuremath{\mathrm{False}}}
+\newcommand{\hash}[1]{\ensuremath{\mathrm{Hash}\left(#1\right)}}
+\newcommand{\prf}[1]{\ensuremath{\mathrm{PRF}\left(#1\right)}}
+\newcommand{\uniform}[1]{\ensuremath{\mathrm{Unif}\left(#1\right)}}
+\newcommand{\enc}[1]{\ensuremath{\mathrm{Enc}\left(#1\right)}}
+\newcommand{\dec}[1]{\ensuremath{\mathrm{Dec}\left(#1\right)}}
+\newcommand{\call}[2]{\ensuremath{\mathbf{#1}\left(#2\right)}}
 % 伪代码 (《算法导论》体例): Cormen 自带的 clrscode3e, \begin{codebox} + \li 编号行。
 \usepackage{clrscode3e}
 \usepackage{longtable,booktabs,array}
@@ -128,6 +138,7 @@
 
 \usepackage{hyperref}
 \hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+\usepackage{pdfcomment}
 
 % --- 智能引用 cleveref: \cref{a,b,c} 自动连多个引用 + 类型前缀 ---
 %     必须最后加载 (hyperref 之后), \cref 才能生成可点击链接。
