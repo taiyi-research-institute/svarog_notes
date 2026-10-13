@@ -1,0 +1,174 @@
+% ============================================================
+%  DKLS23 学习笔记 · 单栏论文模板
+%  article + xeCJK: 英文论文版式, 中文宋体正文 / 黑体标题
+%  全部宏包 TeX Live 自带; 无页眉 (页脚中央页码)
+%
+%  每篇笔记一份 PDF. 标题由片段的 "% title: ..." 注释自动注入 (template/wrap.py),
+%  无作者 / 日期 / 摘要 / 关键词. 唯一手动开关是 \input 行
+%  (文件里唯一一个 \input, make 生成包装文件时自动替换).
+%
+%  编译: make                    # 全量 14 篇 (任何片段改动都会自动全量重编)
+%        make pdf/06-rvole.pdf   # 只编译一篇
+%  (产物在 pdf/)
+% ============================================================
+% article 类只支持 10/11/12pt, 14pt 要换 extarticle (article 的同款克隆, TeX Live 自带)
+\documentclass[14pt,fleqn]{extarticle}
+% 四边均匀砍掉 1/3: 2.6cm → 1.73cm
+\usepackage[top=1.73cm,left=1.73cm,right=1.73cm,bottom=1.73cm]{geometry}
+% 数学正文使用 New Computer Modern Math；黑板粗体使用经典的有衬线 AMS 字形。
+% unicode-math 必须最后加载（amsmath/amssymb 之后）。
+\usepackage{amsmath,amssymb,mathtools}
+% 单栏协议：自动横线、缩进辅助线与显式作用域。
+\makeatletter
+\providecommand\input@path{}
+\g@addto@macro\input@path{{../template/}{template/}}
+\makeatother
+\usepackage{ruledprotocol}
+\usepackage{unicode-math}
+\setmathfont{NewCMMath-Regular.otf}
+% 粗体数学版本（\boldsymbol / \mathversion{bold} 依赖）使用配套的 NewCM Math Bold。
+\setmathfont[version=bold]{NewCMMath-Bold.otf}
+\usepackage[bb=ams]{mathalpha}
+\newcommand{\bit}{\ensuremath{\left\{0,1\right\}}}
+\newcommand{\bits}[1]{\ensuremath{\bit^{#1}}}
+\newcommand{\true}{\ensuremath{\mathrm{True}}}
+\newcommand{\false}{\ensuremath{\mathrm{False}}}
+\newcommand{\hash}[1]{\ensuremath{\mathrm{Hash}\left(#1\right)}}
+\newcommand{\prf}[1]{\ensuremath{\mathrm{PRF}\left(#1\right)}}
+\newcommand{\uniform}[1]{\ensuremath{\mathrm{Unif}\left(#1\right)}}
+\newcommand{\enc}[1]{\ensuremath{\mathrm{Enc}\left(#1\right)}}
+\newcommand{\dec}[1]{\ensuremath{\mathrm{Dec}\left(#1\right)}}
+\newcommand{\call}[2]{\ensuremath{\mathbf{#1}\left(#2\right)}}
+% 伪代码 (《算法导论》体例): Cormen 自带的 clrscode3e, \begin{codebox} + \li 编号行。
+\usepackage{clrscode3e}
+\usepackage{longtable,booktabs,array}
+\usepackage{enumitem}
+\setlist{nosep}
+
+% 中文：正文思源宋体，标题思源黑体。
+\usepackage{xeCJK}
+% 正文西文同样使用思源宋体；思源无斜体面，以楷体替代。
+\setmainfont{NotoSerifSC-Regular.ttf}[
+  BoldFont=NotoSerifSC-Bold.ttf,
+  ItalicFont=FandolKai-Regular.otf,
+]
+\setCJKmainfont{NotoSerifSC-Regular.ttf}[
+  BoldFont=NotoSerifSC-Bold.ttf,
+  ItalicFont=FandolKai-Regular.otf,
+]
+\setCJKsansfont{NotoSansSC-Regular.ttf}[
+  BoldFont=NotoSansSC-Bold.ttf,
+]
+\setCJKmonofont{FandolFang-Regular.otf}
+\newCJKfontfamily\heiti{NotoSansSC-Medium.ttf}[BoldFont=NotoSansSC-Bold.ttf]
+\newfontfamily\heitiLatin{NotoSansSC-Medium.ttf}[BoldFont=NotoSansSC-Bold.ttf]
+
+% 行间公式左对齐，按正文中文字体实测两个汉字的宽度作为缩进。
+\AtBeginDocument{\settowidth{\mathindent}{汉字}}
+
+% --- 章节标题黑体 (中英一致无衬线), 论文观感 ---
+% 标题字体本身已是 SemiBold, 不加 \bfseries (无衬线再粗就笨重)
+% 编号显示加英文句点结尾 ("1." "1.1."), 只改显示不改 \thesection → \ref 引用仍是干净的 "1.1"
+\usepackage{titlesec}
+\titleformat{\section}{\Large\heitiLatin\heiti}{\thesection.}{1em}{}
+\titleformat{\subsection}{\large\heitiLatin\heiti}{\thesubsection.}{1em}{}
+\titleformat{\subsubsection}{\normalsize\heitiLatin\heiti}{\thesubsubsection.}{1em}{}
+
+% --- 笔记排版: 段间空行, 段首不缩进 ---
+% 行距 1.3 倍 (ctex/ustcthesis 标准: 1.2 基线 × 1.3 = 1.56 倍字号; article 默认只有 1.2)
+\linespread{1.3}
+\setlength{\parindent}{0pt}
+% 段距 1em: 0.6em 在 1.3 行距下与行距混成一片, 没有段落区分度
+\setlength{\parskip}{1em}
+
+% 补丁使用可跨页的圆角虚线框，首段自动以 🛡️ 开头。
+\usepackage[most]{tcolorbox}
+\usepackage{twemojis}
+\newenvironment{patchnote}[1]{%
+  \begin{tcolorbox}[
+    enhanced jigsaw, breakable,
+    colback=white, frame hidden,
+    borderline={0.6pt}{0pt}{black!65,dashed},
+    arc=3mm, boxrule=0.6pt,
+    % 分页处用水平虚线闭合，直接连接左右边框，不加圆角。
+    overlay first={
+      \draw[black!65,dashed,line width=0.6pt]
+        ([xshift=0.3pt]frame.south west) -- ([xshift=-0.3pt]frame.south east);
+    },
+    overlay middle={
+      \draw[black!65,dashed,line width=0.6pt]
+        ([xshift=0.3pt]frame.north west) -- ([xshift=-0.3pt]frame.north east);
+      \draw[black!65,dashed,line width=0.6pt]
+        ([xshift=0.3pt]frame.south west) -- ([xshift=-0.3pt]frame.south east);
+    },
+    overlay last={
+      \draw[black!65,dashed,line width=0.6pt]
+        ([xshift=0.3pt]frame.north west) -- ([xshift=-0.3pt]frame.north east);
+    },
+    boxsep=1mm, left=2mm, right=2mm, top=2mm, bottom=2mm,
+    grow to left by=3.6mm, grow to right by=3.6mm,
+    before skip=1em, after skip=1em,
+    before upper={\setlength{\parindent}{0pt}\setlength{\parskip}{1em}}
+  ]
+  {\heitiLatin\heiti\texttwemoji{shield}\enspace #1}\par\nopagebreak
+}{%
+  \end{tcolorbox}
+}
+
+% --- 页眉: 无. article 默认 pagestyle=plain, 只有页脚中央页码 ---
+\pagestyle{plain}
+
+% --- 跨笔记引用: 其它 14 篇的 .aux 提供标签, 链接跳到 pdf/ 里的 PDF ---
+%     make 全量编译时自动刷新; 单篇编译注意 stale aux (见 Makefile 注释)
+\usepackage{xr-hyper}
+\externaldocument{00-mta-baseot}
+\externaldocument{01-iknp03}
+\externaldocument{02-kos15}
+\externaldocument{03-endemic-ot}
+\externaldocument{04-pprf}
+\externaldocument{05-softspoken}
+\externaldocument{06-rvole}
+\externaldocument{07-orchestration}
+\externaldocument{dkls23}
+\externaldocument{misc-f2k}
+\externaldocument{misc-fiat-shamir}
+\externaldocument{misc-gadget}
+\externaldocument{misc-rerand}
+\externaldocument{uc-framework}
+
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+\usepackage{pdfcomment}
+
+% --- 智能引用 cleveref: \cref{a,b,c} 自动连多个引用 + 类型前缀 ---
+%     必须最后加载 (hyperref 之后), \cref 才能生成可点击链接。
+\usepackage{cleveref}
+\crefname{equation}{公式}{公式}
+\Crefname{equation}{公式}{公式}
+\crefname{section}{节}{节}
+\Crefname{section}{节}{节}
+\crefname{subsection}{节}{节}
+\Crefname{subsection}{节}{节}
+% 多引用连接词 (默认英文 and/,): 两个→" 和 ", 三个→"、... 和 ..."
+% 注意: 这些命令 cleveref 在 \AtBeginDocument 才定义, 这里要用 \newcommand 预定义
+% (cleveref 检测到已定义就会保留, \renewcommand 会因"尚未定义"报错)
+\newcommand{\crefpairconjunction}{ 和 }
+\newcommand{\crefmiddleconjunction}{、}
+\newcommand{\creflastconjunction}{ 和 }
+\newcommand{\crefrangeconjunction}{ 至 }
+
+% ==================== 每篇笔记改这里 ====================
+% 标题由 Makefile 从片段的 "% title: ..." 注释注入到 \doctitle (见 template/wrap.py)。
+% 中英文都使用思源黑体，\mdseries 抵消默认粗体。
+% 只显示标题, 无作者 / 日期 / 摘要 / 关键词。
+\providecommand{\doctitle}{未命名笔记}
+
+\begin{document}
+\begin{center}
+  {\LARGE\heitiLatin\heiti\mdseries\doctitle\par}
+\end{center}
+\vspace{1em}
+
+% >>> 要编译的笔记片段: 改这一行 <<<
+\input{00-mta-baseot}
+\end{document}
