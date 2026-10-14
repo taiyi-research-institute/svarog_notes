@@ -6,3 +6,4 @@ tools/myst-notes/dist/
 tools/myst-notes/*.vsix
 *.nb-tmp
 __pycache__/
+**/.texeed
