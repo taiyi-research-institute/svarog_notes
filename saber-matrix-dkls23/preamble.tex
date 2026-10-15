@@ -1,0 +1,51 @@
+\documentclass[14pt,fleqn]{extarticle}
+\usepackage[top=1.73cm,left=1.73cm,right=1.73cm,bottom=1.73cm]{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\makeatletter
+\providecommand\input@path{}
+\g@addto@macro\input@path{{../../../svarog_notes/dkls23/template/}}
+\makeatother
+\usepackage{ruledprotocol}
+\usepackage{unicode-math}
+\setmathfont{NewCMMath-Regular.otf}
+\setmathfont[version=bold]{NewCMMath-Bold.otf}
+\usepackage[bb=ams]{mathalpha}
+
+\newcommand{\bit}{\ensuremath{\{0,1\}}}
+\newcommand{\bits}[1]{\ensuremath{\bit^{#1}}}
+\newcommand{\hash}[1]{\ensuremath{H\left(#1\right)}}
+\newcommand{\prf}[1]{\ensuremath{\mathrm{PRG}\left(#1\right)}}
+\newcommand{\uniform}[1]{\ensuremath{\mathrm{Unif}\left(#1\right)}}
+\newcommand{\call}[2]{\ensuremath{\mathbf{#1}\left(#2\right)}}
+
+\usepackage{longtable,booktabs,array}
+\usepackage{enumitem}
+\setlist{nosep}
+\usepackage{xeCJK}
+\setmainfont{NotoSerifSC-Regular.ttf}[
+  BoldFont=NotoSerifSC-Bold.ttf,
+  ItalicFont=FandolKai-Regular.otf,
+]
+\setCJKmainfont{NotoSerifSC-Regular.ttf}[
+  BoldFont=NotoSerifSC-Bold.ttf,
+  ItalicFont=FandolKai-Regular.otf,
+]
+\setCJKsansfont{NotoSansSC-Regular.ttf}[BoldFont=NotoSansSC-Bold.ttf]
+\setCJKmonofont{FandolFang-Regular.otf}
+\newCJKfontfamily\heiti{NotoSansSC-Medium.ttf}[BoldFont=NotoSansSC-Bold.ttf]
+\newfontfamily\heitiLatin{NotoSansSC-Medium.ttf}[BoldFont=NotoSansSC-Bold.ttf]
+\AtBeginDocument{\settowidth{\mathindent}{汉字}}
+
+\usepackage{titlesec}
+\titleformat{\section}{\Large\heitiLatin\heiti}{\thesection.}{1em}{}
+\titleformat{\subsection}{\large\heitiLatin\heiti}{\thesubsection.}{1em}{}
+\titleformat{\subsubsection}{\normalsize\heitiLatin\heiti}{\thesubsubsection.}{1em}{}
+\linespread{1.3}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1em}
+\pagestyle{plain}
+
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+\providecommand{\doctitle}{未命名笔记}
+

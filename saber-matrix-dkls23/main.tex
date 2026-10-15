@@ -1,0 +1,303 @@
+% !TEX root = main.tex
+\input{preamble.tex}
+\renewcommand{\doctitle}{Saber Base OT＋MatrixChecked 扩展＋DKLS23 RVOLE／ECDSA 实施方式}
+\begin{document}
+\begin{center}
+  {\LARGE\heitiLatin\heiti\mdseries\doctitle\par}
+\end{center}
+\vspace{1em}
+% title: Saber Base OT＋MatrixChecked 扩展＋DKLS23 RVOLE／ECDSA 实施方式
+
+\section{范围与结论}
+
+这条路线只替换每笔签名中新鲜生成的 OT Setup 与扩展层，
+保留 DKLS23 Variant III 的 RVOLE、gadget、群输入检查和 ECDSA 聚合公式。
+Keygen 与 Reshare 不保存 OT 辅助状态，故 $\mathrm{Keystore.aux}=\varnothing$；
+每笔签名只联系本次签名者，并为每个有向参与方对重新生成全部 Saber 与 Matrix 材料。
+
+完整数据流为
+\[
+  \begin{aligned}
+    \text{Saber Base OT}&\longrightarrow \text{两叶证明}
+      \longrightarrow \text{MatrixChecked}\\
+      &\longrightarrow \text{DKLS23 RVOLE}
+      \longrightarrow \text{DKLS23 ECDSA}.
+  \end{aligned}
+\]
+标准排程需要三次 Setup 交换和三次签名交换，共六次交换。
+另有把 Saber 确认与签名首轮合包的五次交换接口；
+该接口已经通过功能测试与故障注入，但交错调度的组合安全证明尚未完成，
+因此只能作为实验接口，不能写成已证明安全的生产替代方案。
+
+\section{参数与角色}
+
+令计算安全参数对应 $256$ 个 Base OT，统计检查参数为 $\sigma=128$。
+MatrixChecked 是 SoftSpoken 的 $k=1$ 直接种子矩阵特化：
+共有 $256$ 棵两叶树，每棵树直接使用一对 Saber Base OT 种子，
+但仍保留 Saber Figure 8 的两叶证明与 Figure 9 的全列检查。
+多方 DKLS23 Variant III 使用
+\[
+  L=2688,\qquad L'=L+\sigma=2816,\qquad B=L/\sigma=21.
+\]
+前 $L$ 列生成 RVOLE 所需随机 OT，最后 $\sigma$ 列只用于隐藏检查响应。
+
+本文的 OT Sender、Receiver 均指扩展 OT 角色。
+在 Saber Base OT 中角色反转：扩展 Sender 是 Base OT Receiver，
+扩展 Receiver 是 Base OT Sender。
+对有向 RVOLE $i\to j$，$P_i$ 是扩展 Sender 与 RVOLE Sender，
+$P_j$ 是扩展 Receiver 与 RVOLE Receiver。
+
+所有 $\mathtt{sid}$ 必须绑定协议版本、排程版本、参数、双方身份、角色与调用编号。
+六轮与五轮排程使用不同的密码学 SID，并在第一次交换中互换参数描述符；
+描述符不一致时，双方在进入第二次交换前中止。
+
+\section{Saber Base OT}
+
+实现采用 Saber 2024/1116 Figure 4 的 NP-like 随机 Base OT，
+底层参数固定为 LightSaber 的 $N=256,l=2$。
+公开 CRS 由 $\mathtt{sid}$ 分域导出，参与方不得自行提供带陷门的矩阵或向量。
+以下把论文中的多项式运算、协调与舍入封装为固定版本的
+$\mathrm{SaberRecv}$、$\mathrm{SaberSend}$ 和 $\mathrm{SaberFinish}$。
+
+\begin{protocol}[
+  name=SaberBaseOT,
+  params={\party{S},\party{R}\mid\mathtt{sid},\kappa=256},
+  returns={\party{S}:(\rho^0,\rho^1),~\party{R}:(s,\rho^s)}
+]
+  (A,r)\coloneq H(\mathtt{sid},\texttt{"saber-crs"}) \\
+  \pcparty{R}\pcfor a\in[0,\kappa);\pcdo \\
+  s_a\coloneq\uniform{\bit},~(\omega_a,B_a)\coloneq
+    \mathrm{SaberRecv}(A,r,s_a) \\
+  \pcendfor{a} \\
+  \pcsend{B=(B_a\mid a\in[0,\kappa))}{\party{S}} \\
+  \pcparty{S}\pcfor a\in[0,\kappa);\pcdo \\
+  (D_a,z_a^0,z_a^1)\coloneq\mathrm{SaberSend}(A,r,B_a) \\
+  \rho_a^d\coloneq H(\mathtt{sid},\texttt{"base-ot-seed"},a,d,B_a,D_a,z_a^d),
+    \quad d\in\bit \\
+  h_a^d\coloneq H(\mathtt{sid},\texttt{"RO3"},a,\rho_a^d) \\
+  e_a\coloneq h_a^0\oplus h_a^1,~
+    \gamma_a\coloneq H(\mathtt{sid},\texttt{"RO3"},a,h_a^0) \\
+  \pcendfor{a} \\
+  \pcsend{(D,e,\gamma)}{\party{R}} \\
+  \pcparty{R}\pcfor a\in[0,\kappa);\pcdo \\
+  z_a^{s_a}\coloneq\mathrm{SaberFinish}(\omega_a,s_a,D_a) \\
+  \rho_a^{s_a}\coloneq H(\mathtt{sid},\texttt{"base-ot-seed"},a,s_a,B_a,D_a,z_a^{s_a}) \\
+  h_a\coloneq H(\mathtt{sid},\texttt{"RO3"},a,\rho_a^{s_a})
+    \oplus(s_a\odot e_a) \\
+  \call{Check}{H(\mathtt{sid},\texttt{"RO3"},a,h_a)=\gamma_a} \\
+  \pcendfor{a} \\
+  c_R\coloneq H(\mathtt{sid},\texttt{"RO4"},(h_a\mid a\in[0,\kappa))) \\
+  \pcsend{c_R}{\party{S}} \\
+  \pcparty{S}c_S\coloneq
+    H(\mathtt{sid},\texttt{"RO4"},(h_a^0\mid a\in[0,\kappa))) \\
+  \call{Check}{c_R=c_S} \\
+  \pcreturn
+\end{protocol}
+
+$\odot$ 表示由单比特控制的按位取值或置零。
+Receiver 必须完成整批检查后统一返回错误，避免泄露最先失败的 OT 位置。
+标准排程只有在 Sender 验证 $c_R=c_S$ 后，才向 Matrix 层释放这批种子。
+
+\section{两叶证明与 MatrixChecked}
+
+\subsection{两叶证明}
+
+MatrixChecked 的 $k=1$ 没有 GGM 内部层，但不能据此删除叶子证明。
+扩展 Receiver 持有每棵树的两支种子；扩展 Sender 持有由 Base OT 选择的一支种子，
+另一支是打孔叶子。
+对第 $a$ 棵树及分支 $d$，令
+\[
+  \widetilde s_{a,d}coloneq
+  H(\mathtt{sid},\texttt{"leaf-proof"},a,d,\rho_a^d).
+\]
+完整树一方发送
+\[
+  \widetilde t_a=\widetilde s_{a,0}\oplus\widetilde s_{a,1},\qquad
+  \widetilde S_a=H(\mathtt{sid},\texttt{"leaf-list"},a,
+    \widetilde s_{a,0},\widetilde s_{a,1}).
+\]
+打孔树一方用已知叶子和 $\widetilde t_a$ 重构缺失标签，
+再核对有序列表哈希 $\widetilde S_a$。
+该证明与扩展消息一起发送，接收方必须先验证证明，再使用同条消息中的矩阵。
+
+\subsection{矩阵扩展}
+
+令 $\mathbb F_c=\mathrm{GF}(2^{128})$，按固定多项式基解释每个 $128$ 位块。
+对 $x\in\bits{L'}$，写成 $B+1$ 个域元素并定义
+\[
+  h_\chi(x)=x^{[B]}+\sum_{b=0}^{B-1}\chi_bx^{[b]}\in\mathbb F_c.
+\]
+扩展 Receiver 的真实选择串为 $\boldsymbol\beta\in\bits L$，
+另采样 $\beta^{\mathrm{ext}}\in\bits\sigma$，并令
+$\widehat\beta=\boldsymbol\beta\mathbin{\|}\beta^{\mathrm{ext}}$。
+
+\begin{protocol}[
+  name=MatrixCheckedRecv,
+  params={\rho^0,\rho^1,\boldsymbol\beta\mid\mathtt{sid},L,\sigma},
+  returns={\rho^{\boldsymbol\beta},E}
+]
+  \widehat\beta\coloneq\boldsymbol\beta\mathbin{\|}
+    \uniform{\bits\sigma} \\
+  \pcfor a\in[0,256),~d\in\bit;\pcdo \\
+  r_{a,d}\coloneq\prf{\mathtt{sid},a,d,\rho_a^d}\in\bits{L'} \\
+  u_a\coloneq\widehat\beta\oplus r_{a,0}\oplus r_{a,1} \\
+  v_{a,*}\coloneq r_{a,1} \\
+  \pcendfor{a,d} \\
+  \chi\coloneq H(\mathtt{sid},\texttt{"matrix-check"},u)\in\mathbb F_c^B \\
+  \tau_a\coloneq h_\chi(v_{a,*}),~
+    \widetilde\beta\coloneq h_\chi(\widehat\beta) \\
+  \rho_j^{\beta_j}\coloneq
+    H(\mathtt{sid},\texttt{"matrix-key"},j,v_{*,j}),\quad j\in[0,L) \\
+  E\coloneq(u,\tau,\widetilde\beta) \\
+  \pcreturn
+\end{protocol}
+
+这里把完整树一方记为 MatrixCheckedRecv，是因为它接收 RVOLE 的随机选择串；
+它在 Saber Base OT 中实际扮演 Sender。
+Base OT Receiver 知道第 $s_a$ 支种子，故未知的打孔分支是
+$\Delta_a=1-s_a$。代码可以把 $v_{a,*}$ 的两支编号作等价互换，
+只要 $\Delta$、打孔分支和输出密钥的编号保持一致。
+
+\begin{protocol}[
+  name=MatrixCheckedSend,
+  params={s,\rho^s,E\mid\mathtt{sid},L,\sigma},
+  returns={\rho^0,\rho^1}
+]
+  (u,\tau,\widetilde\beta)\coloneq E \\
+  \chi\coloneq H(\mathtt{sid},\texttt{"matrix-check"},u)\in\mathbb F_c^B \\
+  \pcfor a\in[0,256);\pcdo \\
+  \Delta_a\coloneq1-s_a,~r_a\coloneq
+    \prf{\mathtt{sid},a,s_a,\rho_a^{s_a}}\in\bits{L'} \\
+  w_{a,*}\coloneq r_a\oplus(\Delta_a\odot u_a) \\
+  \call{Check}{h_\chi(w_{a,*})=
+    \tau_a\oplus(\Delta_a\odot\widetilde\beta)} \\
+  \pcendfor{a} \\
+  \rho_j^0\coloneq H(\mathtt{sid},\texttt{"matrix-key"},j,w_{*,j}) \\
+  \rho_j^1\coloneq H(\mathtt{sid},\texttt{"matrix-key"},j,w_{*,j}\oplus\Delta),
+    \quad j\in[0,L) \\
+  \pcreturn
+\end{protocol}
+
+检查覆盖全部 $256$ 行以及全部 $L'$ 列，输出只取前 $L$ 列。
+诚实执行满足
+\[
+  w_{*,j}=v_{*,j}\oplus(\widehat\beta_j\odot\Delta).
+\]
+Setup 摘要绑定双方身份、Saber 两条消息、Figure 4 confirmation、
+排程版本以及两叶证明；OT transcript 再绑定 Matrix 消息 $E$。
+后续 RVOLE 挑战必须使用这个完整 transcript，不能只哈希修正矩阵 $u$。
+
+\section{接入 DKLS23 RVOLE／ECDSA}
+
+MatrixChecked 输出与原 SoftSpoken 输出保持同一接口：
+RVOLE Sender 得到 $\bigl(\rho_j^0,\rho_j^1\mid j\in[0,L)\bigr)$，
+RVOLE Receiver 得到
+$\bigl(\beta_j,\rho_j^{\beta_j}\mid j\in[0,L)\bigr)$。
+因此，RVOLE 之后的代数不作修改。
+
+对每条有向边，RVOLE 仍使用两个业务负载和一个检查负载，
+保持 Variant III 的 $L=2688$ 及预先生成 gadget。
+Sender 的两个指定输入分别是本方 nonce 份额 $k_i$ 与重随机化私钥份额 $x_i'$；
+指定输入通过随机输入偏移接入，随后保留原 RVOLE 行检查。
+聚合后双方得到加法份额
+\[
+  c^k_{i,j}+d^k_{i,j}=k_i\chi_{i,j},\qquad
+  c^x_{i,j}+d^x_{i,j}=x_i'\chi_{i,j}.
+\]
+
+签名层保留逐边群输入检查
+\[
+  R_i\chi_{i,j}=d^k_{i,j}G+\Gamma^k_{i,j},\qquad
+  X_i'\chi_{i,j}=d^x_{i,j}G+\Gamma^x_{i,j},
+\]
+其中 $\Gamma^k_{i,j}=c^k_{i,j}G$，
+$\Gamma^x_{i,j}=c^x_{i,j}G$。
+还须保留 nonce 承诺及揭示、派生公钥和、完整聚合 nonce 回显、
+零分母重试，以及最终 ECDSA 验签。
+
+对参与方 $P_i$，令 $\phi_i$ 是本地随机掩码，
+$\psi_{i\to j}=\phi_i-\chi_{i,j}$，并令
+$\Phi_i=\phi_i+\sum_{j\ne i}\psi_{j\to i}$。
+原 DKLS23 聚合公式保持为
+\[
+  \begin{aligned}
+    U_i&=k_i\Phi_i+
+      \sum_{j\ne i}\bigl(c^k_{i,j}+d^k_{j,i}\bigr),\\
+    V_i&=x_i'\Phi_i+
+      \sum_{j\ne i}\bigl(c^x_{i,j}+d^x_{j,i}\bigr),\\
+    s_{1,i}&=U_i,\\
+    s_{0,i}&=r_xV_i+m\phi_i.
+  \end{aligned}
+\]
+各方广播 $(s_{0,i},s_{1,i})$ 后计算
+\[
+  s=\frac{\sum_i s_{0,i}}{\sum_i s_{1,i}}\pmod n.
+\]
+这一步没有引入新的 MtA 公式；路线的性能差异应归因于 Base OT、扩展和排程，
+不得与删除 RVOLE 或群检查的方案混为一谈。
+
+\section{六轮与五轮编排}
+
+\begin{center}
+\begin{tabular}{c p{0.39\textwidth} p{0.39\textwidth}}
+\toprule
+交换 & 六轮 MatrixChecked & 五轮合包接口 \\
+\midrule
+1 & Saber 首消息、参数描述符 & Saber 首消息、五轮参数描述符 \\
+2 & Saber 响应与 Figure 4 挑战 & Saber 响应与 Figure 4 挑战 \\
+3 & Figure 4 confirmation & confirmation、nonce 承诺、两叶证明、Matrix 消息 \\
+4 & nonce 承诺、两叶证明、Matrix 消息 & RVOLE 响应、nonce 揭示、$\Gamma$ 与偏移 \\
+5 & RVOLE 响应、nonce 揭示、$\Gamma$ 与偏移 & 部分签名与聚合 nonce 回显 \\
+6 & 部分签名与聚合 nonce 回显 & 已结束 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+五轮接口中，Saber Sender 在第二次交换后已经知道自己期待收到的 confirmation，
+故可用该期待值构造 Setup 摘要，并把自己的 confirmation 与签名首轮同包。
+收到对端消息后，必须逐字节验证实际 confirmation 与期待值相同。
+全部对端确认通过后才能读取长期私钥份额；
+全部两叶证明与 Matrix 全列检查通过后，才能注册或发送任何签名第二轮消息。
+
+任一确认失败、对端集合不一致、证明失败或矩阵检查失败，
+都必须把本次状态标记为终止并销毁全部临时种子、选择串、nonce 与 RVOLE 状态。
+失败状态不得再次确认，也不得通过更换会话号复用。
+五轮与六轮描述符混用时，必须在第一次交换后拒绝。
+
+五轮路线的证明缺口是：恶意 Base OT Receiver 可以先看到两叶证明与扩展消息，
+再决定是否提交有效 confirmation。
+“提前消息不读取长期私钥”只能建立数据流隔离，
+不能代替临时 OT 种子、选择位与未来输出在这种交错调度下的联合模拟证明。
+
+\section{实现落点与验收}
+
+当前实验实现位于相邻的 \texttt{/home/wenke/mta-saber}：
+\begin{itemize}
+  \item \texttt{src/dkg/saber\_ot.rs}：Saber Base OT、Figure 4 检查与 confirmation；
+  \item \texttt{src/dsg/matrix\_saber/seeds.rs}：$k=1$ 两叶证明与种子容器；
+  \item \texttt{src/dsg/matrix\_saber/ot.rs}：MatrixChecked 展开、全列检查与 transcript；
+  \item \texttt{src/dsg/matrix\_saber/mod.rs}：三轮 Setup、参数描述符和六轮接口；
+  \item \texttt{src/dsg/matrix\_saber/fused.rs}：confirmation 门槛与五轮状态机；
+  \item \texttt{src/dsg/dsg\_orch.rs}：RVOLE、群输入检查和 ECDSA 编排。
+\end{itemize}
+
+实现验收至少覆盖：Base OT confirmation 篡改与重放、两叶证明篡改、
+Matrix 首末检查列篡改、完整 $2688$ 个 OT 的密钥关系、Setup 摘要错配、
+排程混用、签名上下文错配、非连续签名集合、非零派生偏移、
+空 \texttt{aux} 不变、nonce 回显和外部 ECDSA 验签。
+完整冷启动计时从签名接口进入开始，到最后一方返回签名为止；
+必须包含新鲜 Saber Setup、序列化、全部检查、RVOLE 与完整签名。
+
+2026 年 10 月 14 日的同窗口实验中，无附加延迟时六轮与五轮的中位数分别为：
+2-of-2 的 $61.95/62.07\,\mathrm{ms}$，2-of-3 的 $60.84/61.20\,\mathrm{ms}$，
+以及 3-of-3 的 $127.56/131.22\,\mathrm{ms}$。
+加入每次交换 $25\,\mathrm{ms}$ 的单向交付延迟后，三组分别为
+$220.56/194.68$、$220.26/194.62$ 和 $290.02/267.96\,\mathrm{ms}$。
+因此，五轮的已测收益来自减少一次等待，本机计算没有稳定加速。
+
+上述实验完成 $540$ 次完整调用，并独立核验 $1260$ 份参与方签名输出；
+全 feature 测试 $62$ 项、默认测试 $38$ 项以及严格 Clippy、格式检查和文档构建均通过。
+这些结果证明所测实现的功能关系和拒绝路径，不证明五轮交错调度的恶意安全组合。
+
+\end{document}
+
